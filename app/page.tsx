@@ -165,9 +165,9 @@ export default function HomePage() {
               <span className="text-xs font-medium" style={{ color: 'var(--accent-primary)' }}>View all →</span>
             </Link>
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             {recentRecipes.map((recipe) => (
-              <Link key={recipe.id} href={`/recipes/${recipe.id}`}>
+              <Link key={recipe.id} href={`/recipes/${recipe.id}`} className="block">
                 <div className="glass-card rounded-xl px-4 py-3 flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-95 transition-all duration-200">
                   <div className="flex items-center gap-3">
                     <TrendingUp size={15} style={{ color: 'var(--accent-tertiary)' }} strokeWidth={1.8} />

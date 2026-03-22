@@ -84,9 +84,9 @@ export default function RecipesPage() {
           )}
         </div>
       ) : (
-        <div className="space-y-3 animate-fade-in">
+        <div className="flex flex-col gap-3 animate-fade-in">
           {filtered.map((recipe) => (
-            <Link key={recipe.id} href={`/recipes/${recipe.id}`}>
+            <Link key={recipe.id} href={`/recipes/${recipe.id}`} className="block">
               <div className="glass-card rounded-2xl p-4 flex flex-col gap-3 cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all duration-200">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
