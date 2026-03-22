@@ -26,6 +26,7 @@ export default function GeneratePage() {
   const [preferences, setPreferences] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [useAllInStock, setUseAllInStock] = useState(true);
+  const [strictStock, setStrictStock] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -85,6 +86,7 @@ export default function GeneratePage() {
           preferences,
           servings,
           useAll: useAllInStock,
+          strictStock,
         }),
       });
 
@@ -164,6 +166,27 @@ export default function GeneratePage() {
                 Use all in-stock
               </button>
             </div>
+
+            {/* Strict stock toggle */}
+            <button
+              onClick={() => setStrictStock(!strictStock)}
+              className="flex items-center gap-2 w-full mt-2 py-2 text-xs transition-all"
+              style={{ color: strictStock ? 'rgb(249 115 22)' : 'var(--text-muted)' }}
+            >
+              <div
+                className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all"
+                style={{
+                  background: strictStock ? 'rgb(249 115 22)' : 'transparent',
+                  border: `1.5px solid ${strictStock ? 'rgb(249 115 22)' : 'var(--border-color)'}`,
+                }}
+              >
+                {strictStock && <Check size={10} strokeWidth={3} color="white" />}
+              </div>
+              <span>
+                <span className="font-semibold">Only use what I have</span>
+                <span style={{ color: 'var(--text-muted)' }}> — no extra ingredients (salt always included)</span>
+              </span>
+            </button>
 
             {!useAllInStock && (
               <div className="space-y-3 mt-3">
