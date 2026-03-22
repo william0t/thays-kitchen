@@ -53,7 +53,10 @@ Make the recipe practical, delicious, and achievable with the listed appliances.
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const jsonText = (message.choices[0].message.content ?? '').trim();
+    const jsonText = (message.choices[0].message.content ?? '')
+      .trim()
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '');
     const recipe = JSON.parse(jsonText);
 
     return NextResponse.json({ recipe });
