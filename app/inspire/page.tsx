@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Sparkles, ChevronRight, Wand2 } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { supabase } from '@/lib/supabase';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RecipeIdea {
   name: string;
@@ -24,6 +25,7 @@ const TAG_COLORS = [
 
 export default function InspirePage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [seedInput, setSeedInput] = useState('');
   const [pantryItems, setPantryItems] = useState<string[]>([]);
   const [ideas, setIdeas] = useState<RecipeIdea[]>([]);
@@ -79,21 +81,21 @@ export default function InspirePage() {
           <ArrowLeft size={17} />
         </button>
         <PageHeader
-          title="Inspire Me"
-          subtitle="Pick a star ingredient, get 5 dish ideas to explore"
+          title={t('ins_title')}
+          subtitle={t('ins_subtitle')}
         />
       </div>
 
       {/* Input */}
       <div className="glass-card rounded-2xl p-4 mb-5">
         <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
-          What&apos;s your star ingredient?
+          {t('ins_star_ingredient')}
         </label>
         <div className="flex gap-2">
           <input
             type="text"
             className="input-field flex-1 px-3 py-2.5 rounded-xl text-sm"
-            placeholder="e.g. chicken breast, salmon, eggplant…"
+            placeholder={t('ins_placeholder')}
             value={seedInput}
             onChange={e => setSeedInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleInspire(); }}
@@ -108,14 +110,14 @@ export default function InspirePage() {
             ) : (
               <Wand2 size={15} strokeWidth={2} />
             )}
-            {loading ? 'Thinking…' : 'Go'}
+            {loading ? t('ins_thinking') : t('ins_go')}
           </button>
         </div>
 
         {/* Pantry quick picks */}
         {pantryItems.length > 0 && (
           <div className="mt-3">
-            <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Or pick from your pantry:</p>
+            <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>{t('ins_or_pick')}</p>
             <div className="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto">
               {pantryItems.slice(0, 20).map(item => (
                 <button
@@ -157,7 +159,7 @@ export default function InspirePage() {
       {!loading && ideas.length > 0 && (
         <div className="space-y-3 animate-fade-in">
           <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)' }}>
-            5 ideas for &ldquo;{seedInput}&rdquo;
+            {t('ins_ideas_for', { seed: seedInput })}
           </p>
           {ideas.map((idea, i) => (
             <div
@@ -208,7 +210,7 @@ export default function InspirePage() {
                 }}
               >
                 <Sparkles size={14} strokeWidth={2} />
-                Generate full recipe
+                {t('ins_generate_full')}
                 <ChevronRight size={14} />
               </button>
             </div>
@@ -219,7 +221,7 @@ export default function InspirePage() {
       {/* Empty state after search with no results */}
       {!loading && hasSearched && ideas.length === 0 && !error && (
         <div className="text-center py-12">
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No ideas came back. Try a different ingredient!</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('ins_no_ideas')}</p>
         </div>
       )}
 
@@ -227,9 +229,9 @@ export default function InspirePage() {
       {!hasSearched && !loading && (
         <div className="text-center py-12 animate-fade-in">
           <div className="text-4xl mb-3">✨</div>
-          <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>What are you in the mood for?</p>
+          <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>{t('ins_mood_heading')}</p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            Type any ingredient above and we&apos;ll dream up 5 dishes you could make with it.
+            {t('ins_mood_sub')}
           </p>
         </div>
       )}

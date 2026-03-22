@@ -14,6 +14,8 @@ import {
   COMMON_UNITS,
 } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import type { InventoryCategory as _InventoryCategory } from '@/lib/types';
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as InventoryCategory[];
 
@@ -37,6 +39,7 @@ const defaultForm: FormData = {
 
 export default function InventoryPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -136,11 +139,11 @@ export default function InventoryPage() {
   return (
     <div className="page-content max-w-lg mx-auto px-4 pt-10">
       <PageHeader
-        title="Pantry"
-        subtitle={`${inStockCount} of ${items.length} items in stock`}
+        title={t('inv_title')}
+        subtitle={t('inv_subtitle', { inStock: inStockCount, total: items.length })}
         action={
           <button onClick={openAdd} className="btn-gradient flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold">
-            <Plus size={16} /> Add
+            <Plus size={16} /> {t('inv_add')}
           </button>
         }
       />
@@ -151,7 +154,7 @@ export default function InventoryPage() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
           <input
             className="input-field w-full pl-9 pr-3 py-2.5 rounded-xl text-sm"
-            placeholder="Search ingredients…"
+            placeholder={t('inv_search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -181,7 +184,7 @@ export default function InventoryPage() {
               border: '1px solid var(--glass-border)',
             }}
           >
-            All
+            {t('inv_all')}
           </button>
           {CATEGORIES.map((cat) => (
             <button
@@ -194,7 +197,7 @@ export default function InventoryPage() {
                 border: '1px solid var(--glass-border)',
               }}
             >
-              {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+              {CATEGORY_EMOJIS[cat]} {t(`cat_${cat}`)}
             </button>
           ))}
         </div>
@@ -211,7 +214,7 @@ export default function InventoryPage() {
         <div className="text-center py-16">
           <Package size={40} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-muted)' }} />
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            {search ? 'No items match your search.' : 'No items yet. Add your first ingredient!'}
+            {search ? t('inv_empty_search') : t('inv_empty_add')}
           </p>
         </div>
       ) : (
@@ -221,7 +224,7 @@ export default function InventoryPage() {
               <div className="flex items-center gap-2 mb-2">
                 <span>{CATEGORY_EMOJIS[cat]}</span>
                 <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                  {CATEGORY_LABELS[cat]}
+                  {t(`cat_${cat}`)}
                 </span>
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
                   ({grouped[cat]!.length})
@@ -261,7 +264,7 @@ export default function InventoryPage() {
                         {!item.in_stock && (
                           <span className="text-xs px-1.5 py-0.5 rounded-full flex-shrink-0"
                             style={{ background: 'rgba(239,68,68,0.12)', color: 'var(--danger)', fontSize: '10px' }}>
-                            Out
+                            {t('inv_out_badge')}
                           </span>
                         )}
                       </div>
@@ -313,7 +316,7 @@ export default function InventoryPage() {
 
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                {editingItem ? 'Edit Item' : 'Add Item'}
+                {editingItem ? t('inv_edit_item') : t('inv_add_item')}
               </h2>
               <button onClick={() => setShowModal(false)} style={{ color: 'var(--text-muted)' }}>
                 <X size={20} />
@@ -325,15 +328,15 @@ export default function InventoryPage() {
               disabled={saving || !form.name.trim()}
               className="btn-gradient w-full py-3 rounded-xl font-semibold disabled:opacity-50 mb-4"
             >
-              {saving ? 'Saving…' : editingItem ? 'Save Changes' : 'Add Item'}
+              {saving ? t('inv_saving') : editingItem ? t('inv_save_changes') : t('inv_add_item')}
             </button>
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Name *</label>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>{t('inv_name_label')}</label>
                 <input
                   className="input-field w-full px-3 py-2.5 rounded-xl text-sm"
-                  placeholder="e.g. Chicken breast"
+                  placeholder={t('inv_name_placeholder')}
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   autoFocus
@@ -341,7 +344,7 @@ export default function InventoryPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Category</label>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>{t('inv_category_label')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {CATEGORIES.map((cat) => (
                     <button
@@ -356,7 +359,7 @@ export default function InventoryPage() {
                       }}
                     >
                       <span>{CATEGORY_EMOJIS[cat]}</span>
-                      <span className="truncate">{CATEGORY_LABELS[cat]}</span>
+                      <span className="truncate">{t(`cat_${cat}`)}</span>
                     </button>
                   ))}
                 </div>
@@ -364,17 +367,17 @@ export default function InventoryPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Quantity</label>
+                  <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>{t('inv_quantity_label')}</label>
                   <input
                     className="input-field w-full px-3 py-2.5 rounded-xl text-sm"
                     type="number"
-                    placeholder="e.g. 2"
+                    placeholder={t('inv_quantity_placeholder')}
                     value={form.quantity}
                     onChange={(e) => setForm({ ...form, quantity: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Unit</label>
+                  <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>{t('inv_unit_label')}</label>
                   <select
                     className="input-field w-full px-3 py-2.5 rounded-xl text-sm"
                     value={form.unit}
@@ -386,10 +389,10 @@ export default function InventoryPage() {
               </div>
 
               <div>
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Notes</label>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>{t('inv_notes_label')}</label>
                 <input
                   className="input-field w-full px-3 py-2.5 rounded-xl text-sm"
-                  placeholder="e.g. Organic, from Costco…"
+                  placeholder={t('inv_notes_placeholder')}
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 />
@@ -397,8 +400,8 @@ export default function InventoryPage() {
 
               <div className="flex items-center justify-between px-1">
                 <div>
-                  <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>In Stock</div>
-                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Do you currently have this?</div>
+                  <div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('inv_in_stock_label')}</div>
+                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('inv_in_stock_sub')}</div>
                 </div>
                 <button
                   onClick={() => setForm({ ...form, in_stock: !form.in_stock })}

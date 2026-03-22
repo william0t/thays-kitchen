@@ -13,6 +13,7 @@ import {
   APPLIANCE_EMOJIS,
 } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const CATEGORIES = Object.keys(APPLIANCE_CATEGORY_LABELS) as ApplianceCategory[];
 
@@ -26,6 +27,7 @@ const defaultForm: FormData = { name: '', category: 'cooking', notes: '' };
 
 export default function AppliancesPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [items, setItems] = useState<Appliance[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -101,11 +103,11 @@ export default function AppliancesPage() {
   return (
     <div className="page-content max-w-lg mx-auto px-4 pt-10">
       <PageHeader
-        title="Kitchen Tools"
-        subtitle={`${items.length} appliances & tools`}
+        title={t('app_title')}
+        subtitle={t('app_subtitle', { count: items.length })}
         action={
           <button onClick={openAdd} className="btn-gradient flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold">
-            <Plus size={16} /> Add
+            <Plus size={16} /> {t('app_add')}
           </button>
         }
       />
@@ -117,7 +119,7 @@ export default function AppliancesPage() {
       ) : items.length === 0 ? (
         <div className="text-center py-16">
           <Utensils size={40} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-muted)' }} />
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No appliances yet. Add your kitchen tools!</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('app_empty')}</p>
         </div>
       ) : (
         <div className="space-y-5 animate-fade-in">
@@ -126,7 +128,7 @@ export default function AppliancesPage() {
               <div className="flex items-center gap-2 mb-2">
                 <span>{APPLIANCE_EMOJIS[cat]}</span>
                 <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                  {APPLIANCE_CATEGORY_LABELS[cat]}
+                  {t(`acat_${cat}`)}
                 </span>
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>({grouped[cat]!.length})</span>
               </div>
@@ -174,7 +176,7 @@ export default function AppliancesPage() {
             <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--border-strong)' }} />
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-                {editingItem ? 'Edit Tool' : 'Add Tool'}
+                {editingItem ? t('app_edit_tool') : t('app_add_tool')}
               </h2>
               <button onClick={() => setShowModal(false)} style={{ color: 'var(--text-muted)' }}>
                 <X size={20} />
@@ -185,21 +187,21 @@ export default function AppliancesPage() {
               disabled={saving || !form.name.trim()}
               className="btn-gradient w-full py-3 rounded-xl font-semibold disabled:opacity-50 mb-4"
             >
-              {saving ? 'Saving…' : editingItem ? 'Save Changes' : 'Add Tool'}
+              {saving ? t('app_saving') : editingItem ? t('app_save_changes') : t('app_add_tool')}
             </button>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Name *</label>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>{t('app_name_label')}</label>
                 <input
                   className="input-field w-full px-3 py-2.5 rounded-xl text-sm"
-                  placeholder="e.g. Air Fryer, Cast Iron Skillet…"
+                  placeholder={t('app_name_placeholder')}
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   autoFocus
                 />
               </div>
               <div>
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Category</label>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>{t('app_category_label')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   {CATEGORIES.map((cat) => (
                     <button
@@ -214,16 +216,16 @@ export default function AppliancesPage() {
                       }}
                     >
                       <span>{APPLIANCE_EMOJIS[cat]}</span>
-                      <span>{APPLIANCE_CATEGORY_LABELS[cat]}</span>
+                      <span>{t(`acat_${cat}`)}</span>
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Notes</label>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>{t('app_notes_label')}</label>
                 <input
                   className="input-field w-full px-3 py-2.5 rounded-xl text-sm"
-                  placeholder="e.g. 6-quart, brand, condition…"
+                  placeholder={t('app_notes_placeholder')}
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 />

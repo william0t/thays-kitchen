@@ -8,8 +8,10 @@ import { BookOpen, Clock, Users, Sparkles, Search, ChevronRight, Trash2 } from '
 import PageHeader from '@/components/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { Recipe } from '@/lib/types';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function RecipesPage() {
+  const { t } = useLanguage();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -45,8 +47,8 @@ export default function RecipesPage() {
   return (
     <div className="page-content max-w-lg mx-auto px-4 pt-10">
       <PageHeader
-        title="Recipes"
-        subtitle={`${recipes.length} saved recipe${recipes.length !== 1 ? 's' : ''}`}
+        title={t('rec_title')}
+        subtitle={recipes.length === 1 ? t('rec_subtitle_one') : t('rec_subtitle_many', { count: recipes.length })}
       />
 
       {/* Search */}
@@ -54,7 +56,7 @@ export default function RecipesPage() {
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
         <input
           className="input-field w-full pl-9 pr-3 py-2.5 rounded-xl text-sm"
-          placeholder="Search recipes…"
+          placeholder={t('rec_search')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -68,17 +70,17 @@ export default function RecipesPage() {
         <div className="text-center py-16">
           <BookOpen size={40} className="mx-auto mb-3 opacity-30" style={{ color: 'var(--text-muted)' }} />
           <p className="text-sm mb-1" style={{ color: 'var(--text-muted)' }}>
-            {search ? 'No recipes match your search.' : 'No recipes yet!'}
+            {search ? t('rec_empty_search') : t('rec_empty_title')}
           </p>
           {!search && (
             <p className="text-xs mb-5" style={{ color: 'var(--text-muted)' }}>
-              Generate one with AI using your pantry ingredients.
+              {t('rec_empty_sub')}
             </p>
           )}
           {!search && (
             <Link href="/generate">
               <button className="btn-gradient px-5 py-2.5 rounded-full text-sm font-semibold flex items-center gap-2 mx-auto">
-                <Sparkles size={15} /> Generate Recipe
+                <Sparkles size={15} /> {t('rec_generate')}
               </button>
             </Link>
           )}
@@ -99,7 +101,7 @@ export default function RecipesPage() {
                           className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium flex-shrink-0"
                           style={{ background: 'rgba(139, 92, 246, 0.12)', color: 'var(--accent-secondary)' }}
                         >
-                          <Sparkles size={10} /> AI
+                          <Sparkles size={10} /> {t('rec_ai_badge')}
                         </span>
                       )}
                     </div>

@@ -4,18 +4,20 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Refrigerator, Sparkles, BookOpen, Utensils } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-
-const navItems = [
-  { href: '/', icon: Home, label: 'Home' },
-  { href: '/inventory', icon: Refrigerator, label: 'Pantry' },
-  { href: '/generate', icon: Sparkles, label: 'Generate' },
-  { href: '/recipes', icon: BookOpen, label: 'Recipes' },
-  { href: '/appliances', icon: Utensils, label: 'Tools' },
-];
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { t } = useLanguage();
+
+  const navItems = [
+    { href: '/', icon: Home, label: t('nav_home') },
+    { href: '/inventory', icon: Refrigerator, label: t('nav_pantry') },
+    { href: '/generate', icon: Sparkles, label: t('nav_generate') },
+    { href: '/recipes', icon: BookOpen, label: t('nav_recipes') },
+    { href: '/appliances', icon: Utensils, label: t('nav_tools') },
+  ];
 
   if (!user || pathname === '/login') return null;
 

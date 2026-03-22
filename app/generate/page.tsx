@@ -9,11 +9,13 @@ import PageHeader from '@/components/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { InventoryItem, Appliance, CATEGORY_EMOJIS, CATEGORY_LABELS, InventoryCategory } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function GeneratePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [ingredients, setIngredients] = useState<InventoryItem[]>([]);
   const [appliances, setAppliances] = useState<Appliance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,7 +149,7 @@ export default function GeneratePage() {
 
   return (
     <div className="page-content max-w-lg mx-auto px-4 pt-10">
-      <PageHeader title="Generate Recipe" subtitle="AI-powered from your kitchen" />
+      <PageHeader title={t('gen_title')} subtitle={t('gen_subtitle')} />
 
       {loading ? (
         <div className="space-y-3">
@@ -159,9 +161,9 @@ export default function GeneratePage() {
           <div className="glass-card rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Ingredients</div>
+                <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('gen_ingredients')}</div>
                 <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {inStockCount} items in stock
+                  {t('gen_items_in_stock', { count: inStockCount })}
                 </div>
               </div>
               <button
@@ -174,7 +176,7 @@ export default function GeneratePage() {
                 }}
               >
                 {useAllInStock && <Check size={12} strokeWidth={2.5} />}
-                Use all in-stock
+                {t('gen_use_all')}
               </button>
             </div>
 
@@ -194,8 +196,8 @@ export default function GeneratePage() {
                 {strictStock && <Check size={10} strokeWidth={3} color="white" />}
               </div>
               <span>
-                <span className="font-semibold">Only use what I have</span>
-                <span style={{ color: 'var(--text-muted)' }}> — no extra ingredients (salt always included)</span>
+                <span className="font-semibold">{t('gen_only_use')}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('gen_no_extra')}</span>
               </span>
             </button>
 
@@ -204,7 +206,7 @@ export default function GeneratePage() {
                 {(Object.keys(grouped) as InventoryCategory[]).map((cat) => (
                   <div key={cat}>
                     <div className="text-xs font-medium mb-1.5 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                      {CATEGORY_EMOJIS[cat]} {CATEGORY_LABELS[cat]}
+                      {CATEGORY_EMOJIS[cat]} {t(`cat_${cat}`)}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {grouped[cat]!.map((item) => {
@@ -229,7 +231,7 @@ export default function GeneratePage() {
                 ))}
                 {inStockCount === 0 && (
                   <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
-                    No items in stock. Add some to your pantry first!
+                    {t('gen_no_items')}
                   </p>
                 )}
               </div>
@@ -238,9 +240,9 @@ export default function GeneratePage() {
 
           {/* Appliances */}
           <div className="glass-card rounded-2xl p-4">
-            <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Appliances to use</div>
+            <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{t('gen_appliances')}</div>
             {appliances.length === 0 ? (
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>No appliances added yet.</p>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('gen_no_appliances')}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {appliances.map((appliance) => {
@@ -266,7 +268,7 @@ export default function GeneratePage() {
 
           {/* Servings */}
           <div className="glass-card rounded-2xl p-4">
-            <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Servings</div>
+            <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{t('gen_servings')}</div>
             <div className="flex items-center gap-3">
               {[1, 2, 4, 6, 8, 10, 12].map((n) => (
                 <button
@@ -295,7 +297,7 @@ export default function GeneratePage() {
             >
               <div className="flex items-center gap-2">
                 <Settings2 size={16} style={{ color: 'var(--text-muted)' }} />
-                <span className="text-sm font-medium">Preferences & Dietary Notes</span>
+                <span className="text-sm font-medium">{t('gen_preferences')}</span>
               </div>
               <X
                 size={16}
@@ -311,7 +313,7 @@ export default function GeneratePage() {
                 <textarea
                   className="input-field w-full px-3 py-2.5 rounded-xl text-sm resize-none"
                   rows={3}
-                  placeholder="e.g. Spicy, low-carb, no dairy, Italian style, quick dinner under 30 min…"
+                  placeholder={t('gen_preferences_placeholder')}
                   value={preferences}
                   onChange={(e) => setPreferences(e.target.value)}
                 />
@@ -338,12 +340,12 @@ export default function GeneratePage() {
             {generating ? (
               <>
                 <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                Generating your recipe…
+                {t('gen_generating')}
               </>
             ) : (
               <>
                 <Sparkles size={20} strokeWidth={2} />
-                Generate Recipe with AI
+                {t('gen_generate_btn')}
               </>
             )}
           </button>
@@ -351,7 +353,7 @@ export default function GeneratePage() {
           {generating && (
             <p className="text-center text-sm animate-pulse" style={{ color: 'var(--text-muted)' }}>
               <ChefHat size={14} className="inline mr-1" />
-              ChatGPT is crafting something delicious for you…
+              {t('gen_crafting')}
             </p>
           )}
         </div>

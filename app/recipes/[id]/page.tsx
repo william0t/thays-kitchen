@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { Recipe, RecipeIngredient } from '@/lib/types';
 import ThemeToggle from '@/components/ThemeToggle';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const SCALE_OPTIONS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
 
@@ -61,6 +62,7 @@ export default function RecipeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const printRef = useRef<HTMLDivElement>(null);
+  const { t } = useLanguage();
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [pantryNames, setPantryNames] = useState<Set<string>>(new Set());
@@ -73,6 +75,8 @@ export default function RecipeDetailPage() {
   const [checkedSteps, setCheckedSteps] = useState<Set<number>>(new Set());
   const [stepTimers, setStepTimers] = useState<Record<number, StepTimer>>({});
   const [shoppingCopied, setShoppingCopied] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [completedMsg, setCompletedMsg] = useState('');
 
   // Single interval that ticks all running timers
   useEffect(() => {
@@ -201,6 +205,75 @@ export default function RecipeDetailPage() {
     await navigator.clipboard.writeText(`Shopping List for ${recipe?.name}:\n${lines}`);
     setShoppingCopied(true);
     setTimeout(() => setShoppingCopied(false), 2000);
+  };
+
+  const handleMarkCompleted = async () => {
+    if (!recipe || completing) return;
+    setCompleting(true);
+    setCompletedMsg('');
+    try {
+      const { data: pantryItems } = await supabase
+        .from('inventory_items')
+        .select('id, name, quantity, unit, in_stock');
+
+      if (!pantryItems || pantryItems.length === 0) {
+        setCompletedMsg(t('rd_no_pantry_match'));
+        return;
+      }
+
+      const updates: PromiseLike<unknown>[] = [];
+      let matched = 0;
+
+      for (const ing of recipe.ingredients) {
+        const ingLower = ing.name.toLowerCase();
+        const pantryItem = pantryItems.find((p: { name: string }) => {
+          const pLower = p.name.toLowerCase();
+          return ingLower.includes(pLower) || pLower.includes(ingLower);
+        });
+
+        if (!pantryItem) continue;
+        matched++;
+
+        const usedAmount = ing.amount * effectiveScale;
+        const currentQty = pantryItem.quantity ?? null;
+
+        if (currentQty !== null) {
+          const newQty = Math.max(0, currentQty - usedAmount);
+          updates.push(
+            supabase
+              .from('inventory_items')
+              .update({ quantity: newQty, in_stock: newQty > 0 })
+              .eq('id', pantryItem.id)
+              .then((r) => r)
+          );
+        } else {
+          // No quantity tracked — just flip to out of stock
+          updates.push(
+            supabase
+              .from('inventory_items')
+              .update({ in_stock: false })
+              .eq('id', pantryItem.id)
+              .then((r) => r)
+          );
+        }
+      }
+
+      await Promise.all(updates);
+
+      if (matched === 0) {
+        setCompletedMsg(t('rd_no_pantry_match'));
+      } else {
+        setCompletedMsg(t('rd_completed_success'));
+        // Refresh pantry names so badges update
+        const { data: fresh } = await supabase
+          .from('inventory_items')
+          .select('name')
+          .eq('in_stock', true);
+        setPantryNames(new Set((fresh || []).map((i: { name: string }) => i.name.toLowerCase())));
+      }
+    } finally {
+      setCompleting(false);
+    }
   };
 
   const handleDownloadPdf = async () => {
@@ -340,8 +413,8 @@ export default function RecipeDetailPage() {
   if (!recipe) {
     return (
       <div className="max-w-lg mx-auto px-4 pt-20 text-center">
-        <p style={{ color: 'var(--text-muted)' }}>Recipe not found.</p>
-        <button onClick={() => router.back()} className="mt-4 text-sm" style={{ color: 'var(--accent-primary)' }}>← Go back</button>
+        <p style={{ color: 'var(--text-muted)' }}>{t('rd_not_found')}</p>
+        <button onClick={() => router.back()} className="mt-4 text-sm" style={{ color: 'var(--accent-primary)' }}>{t('rd_go_back')}</button>
       </div>
     );
   }
@@ -358,22 +431,22 @@ export default function RecipeDetailPage() {
           className="flex items-center gap-1.5 text-sm font-medium"
           style={{ color: 'var(--text-secondary)' }}
         >
-          <ArrowLeft size={18} /> Back
+          <ArrowLeft size={18} /> {t('rd_back')}
         </button>
         <div className="flex items-center gap-2">
           <button onClick={handleCopy} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: copied ? 'var(--success)' : 'var(--text-muted)' }}>
             {copied ? <Check size={13} /> : <Copy size={13} />}
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? t('rd_copied') : t('rd_copy')}
           </button>
           <button onClick={handleShare} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: shared ? 'var(--success)' : 'var(--text-muted)' }}>
             {shared ? <Check size={13} /> : <Share2 size={13} />}
-            {shared ? 'Copied!' : 'Share'}
+            {shared ? t('rd_copied') : t('rd_share')}
           </button>
           <button onClick={handlePrint} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-            <Printer size={13} /> Print
+            <Printer size={13} /> {t('rd_print')}
           </button>
           <button onClick={handleDownloadPdf} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all btn-gradient">
-            <Download size={13} /> PDF
+            <Download size={13} /> {t('rd_pdf')}
           </button>
           <ThemeToggle />
         </div>
@@ -388,7 +461,7 @@ export default function RecipeDetailPage() {
             </h1>
             {recipe.ai_generated && (
               <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 mt-0.5" style={{ background: 'rgba(139, 92, 246, 0.12)', color: 'var(--accent-secondary)' }}>
-                <Sparkles size={11} /> AI Generated
+                <Sparkles size={11} /> {t('rd_ai_generated')}
               </span>
             )}
           </div>
@@ -403,21 +476,21 @@ export default function RecipeDetailPage() {
         <div className="glass-card rounded-2xl p-4 mb-5 grid grid-cols-3 gap-4">
           <div className="flex flex-col items-center gap-1">
             <Clock size={18} style={{ color: 'var(--accent-primary)' }} strokeWidth={1.8} />
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Prep</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('rd_prep')}</span>
             <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {recipe.prep_time ? `${recipe.prep_time}m` : '—'}
             </span>
           </div>
           <div className="flex flex-col items-center gap-1">
             <ChefHat size={18} style={{ color: 'var(--accent-secondary)' }} strokeWidth={1.8} />
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Cook</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('rd_cook')}</span>
             <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {recipe.cook_time ? `${recipe.cook_time}m` : '—'}
             </span>
           </div>
           <div className="flex flex-col items-center gap-1">
             <Users size={18} style={{ color: 'var(--accent-tertiary)' }} strokeWidth={1.8} />
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Serves</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('rd_serves')}</span>
             <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
               {Math.round(recipe.servings * effectiveScale)}
             </span>
@@ -427,7 +500,7 @@ export default function RecipeDetailPage() {
         {/* Scale */}
         <div className="glass-card rounded-2xl p-4 mb-5 no-print">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Recipe Scale</span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('rd_recipe_scale')}</span>
             <span className="text-xs font-bold px-2 py-1 rounded-full" style={{ background: 'rgba(236, 72, 153, 0.1)', color: 'var(--accent-primary)' }}>
               {effectiveScale}×
             </span>
@@ -462,7 +535,7 @@ export default function RecipeDetailPage() {
               type="number"
               step="0.25"
               min="0.1"
-              placeholder="Custom…"
+              placeholder={t('rd_custom')}
               value={showCustom ? customScale : ''}
               onFocus={() => setShowCustom(true)}
               onChange={(e) => setCustomScale(e.target.value)}
@@ -482,9 +555,9 @@ export default function RecipeDetailPage() {
         {/* Ingredients */}
         <div className="mb-5">
           <h2 className="text-base font-bold mb-3" style={{ color: 'var(--text-primary)' }}>
-            Ingredients
+            {t('rd_ingredients')}
             <span className="ml-2 text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
-              ({recipe.ingredients.length} items)
+              ({recipe.ingredients.length})
             </span>
           </h2>
           <div className="glass-card rounded-2xl overflow-hidden">
@@ -510,7 +583,7 @@ export default function RecipeDetailPage() {
                         ? { background: 'rgba(34,197,94,0.12)', color: '#22c55e' }
                         : { background: 'rgba(249,115,22,0.12)', color: '#f97316' }}
                     >
-                      {inPantry ? 'In pantry' : 'Need to buy'}
+                      {inPantry ? t('rd_in_pantry') : t('rd_need_to_buy')}
                     </span>
                   )}
                 </div>
@@ -525,9 +598,9 @@ export default function RecipeDetailPage() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
                 <ShoppingCart size={16} style={{ color: '#f97316' }} />
-                Shopping List
+                {t('rd_shopping_list')}
                 <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
-                  ({missingIngredients.length} items)
+                  ({missingIngredients.length})
                 </span>
               </h2>
               <button
@@ -540,7 +613,7 @@ export default function RecipeDetailPage() {
                 }}
               >
                 {shoppingCopied ? <Check size={11} /> : <Copy size={11} />}
-                {shoppingCopied ? 'Copied!' : 'Copy list'}
+                {shoppingCopied ? t('rd_copied') : t('rd_copy_list')}
               </button>
             </div>
             <div className="glass-card rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(249,115,22,0.2)' }}>
@@ -566,7 +639,7 @@ export default function RecipeDetailPage() {
         {/* Appliances used */}
         {recipe.appliances_used && recipe.appliances_used.length > 0 && (
           <div className="mb-5">
-            <h2 className="text-base font-bold mb-3" style={{ color: 'var(--text-primary)' }}>You&apos;ll Need</h2>
+            <h2 className="text-base font-bold mb-3" style={{ color: 'var(--text-primary)' }}>{t('rd_youll_need')}</h2>
             <div className="flex flex-wrap gap-2">
               {recipe.appliances_used.map((a) => (
                 <span key={a} className="px-3 py-1.5 rounded-full text-sm" style={{ background: 'rgba(139, 92, 246, 0.1)', color: 'var(--accent-secondary)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
@@ -579,7 +652,7 @@ export default function RecipeDetailPage() {
 
         {/* Instructions */}
         <div className="mb-5">
-          <h2 className="text-base font-bold mb-3" style={{ color: 'var(--text-primary)' }}>Instructions</h2>
+          <h2 className="text-base font-bold mb-3" style={{ color: 'var(--text-primary)' }}>{t('rd_instructions')}</h2>
           <div className="space-y-3">
             {recipe.instructions.map((step, i) => {
               const duration = parseStepDuration(step);
@@ -647,7 +720,7 @@ export default function RecipeDetailPage() {
                                 className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
                                 style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}
                               >
-                                <Check size={11} strokeWidth={2.5} /> Time&apos;s up!
+                                <Check size={11} strokeWidth={2.5} /> {t('rd_times_up')}
                               </span>
                               <button
                                 onClick={() => resetTimer(i, duration)}
@@ -715,7 +788,7 @@ export default function RecipeDetailPage() {
           <div className="mb-5">
             <h2 className="text-base font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
               <Lightbulb size={16} style={{ color: '#f59e0b' }} />
-              Chef&apos;s Notes
+              {t('rd_chefs_notes')}
             </h2>
             <div className="glass-card rounded-2xl p-4 space-y-3" style={{ border: '1px solid rgba(245,158,11,0.2)' }}>
               {recipe.notes.map((note, i) => (
@@ -745,13 +818,48 @@ export default function RecipeDetailPage() {
           </div>
         )}
 
+        {/* Recipe Completed */}
+        <div className="mb-4 no-print">
+          <button
+            onClick={handleMarkCompleted}
+            disabled={completing}
+            className="w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+            style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)', color: 'white', boxShadow: '0 4px 16px rgba(34,197,94,0.35)' }}
+          >
+            {completing ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                {t('rd_completing')}
+              </>
+            ) : (
+              <>
+                <Check size={20} strokeWidth={2.5} />
+                {t('rd_mark_completed')}
+              </>
+            )}
+          </button>
+          {completedMsg && (
+            <p
+              className="text-center text-sm mt-2 font-medium"
+              style={{ color: completedMsg === t('rd_completed_success') ? '#22c55e' : 'var(--text-muted)' }}
+            >
+              {completedMsg}
+              {completedMsg === t('rd_completed_success') && (
+                <span className="block text-xs font-normal mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                  {t('rd_completed_body')}
+                </span>
+              )}
+            </p>
+          )}
+        </div>
+
         {/* Bottom action buttons */}
         <div className="flex gap-3 mb-4 no-print">
           <button
             onClick={handleDownloadPdf}
             className="btn-gradient flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
           >
-            <Download size={16} /> Save as PDF
+            <Download size={16} /> {t('rd_save_pdf')}
           </button>
           <button
             onClick={handleShare}
@@ -762,7 +870,7 @@ export default function RecipeDetailPage() {
               color: 'var(--text-primary)',
             }}
           >
-            <Share2 size={16} /> Share
+            <Share2 size={16} /> {t('rd_share')}
           </button>
         </div>
       </div>
