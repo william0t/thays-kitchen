@@ -302,7 +302,7 @@ export default function InventoryPage() {
           onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
         >
           <div
-            className="w-full max-w-lg rounded-t-3xl p-6 animate-slide-up"
+            className="w-full max-w-lg rounded-t-3xl p-6 pb-28 animate-slide-up"
             style={{ background: 'var(--bg-surface-solid)', border: '1px solid var(--border-color)', maxHeight: '92vh', overflowY: 'auto' }}
           >
             {/* Handle */}
