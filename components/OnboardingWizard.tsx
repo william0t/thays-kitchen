@@ -138,11 +138,11 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
       style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
     >
       <div
-        className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col mb-16 sm:mb-0"
+        className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col"
         style={{
           background: 'var(--bg-surface-solid)',
           border: '1px solid var(--border-color)',
