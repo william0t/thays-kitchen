@@ -142,7 +142,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
       style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
     >
       <div
-        className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col"
+        className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col mb-16 sm:mb-0"
         style={{
           background: 'var(--bg-surface-solid)',
           border: '1px solid var(--border-color)',
