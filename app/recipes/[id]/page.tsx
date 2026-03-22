@@ -6,7 +6,8 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Clock, Users, Printer, Download, Share2, Copy,
-  Check, ChefHat, Sparkles, Minus, Plus
+  Check, ChefHat, Sparkles, Minus, Plus, Timer, Play, Pause,
+  RotateCcw, ShoppingCart, Lightbulb,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Recipe, RecipeIngredient } from '@/lib/types';
@@ -16,11 +17,9 @@ const SCALE_OPTIONS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
 
 function formatAmount(amount: number, scale: number): string {
   const scaled = amount * scale;
-  // Round to 2 decimal places, remove trailing zeros
   const rounded = Math.round(scaled * 100) / 100;
   if (rounded === Math.floor(rounded)) return String(Math.floor(rounded));
 
-  // Convert to nice fractions
   const fractions: [number, string][] = [
     [0.125, '⅛'], [0.25, '¼'], [0.333, '⅓'], [0.375, '⅜'],
     [0.5, '½'], [0.625, '⅝'], [0.667, '⅔'], [0.75, '¾'], [0.875, '⅞'],
@@ -32,6 +31,30 @@ function formatAmount(amount: number, scale: number): string {
     return whole > 0 ? `${whole} ${fraction[1]}` : fraction[1];
   }
   return rounded.toFixed(2).replace(/\.?0+$/, '');
+}
+
+/** Returns duration in seconds if the step text contains a time mention, else null */
+function parseStepDuration(step: string): number | null {
+  let total = 0;
+  const hourMatch = step.match(/\b(\d+(?:\.\d+)?)\s*(?:hours?|hrs?)\b/i);
+  // For minutes, handle ranges like "10-15 minutes" — use the lower bound
+  const minMatch = step.match(/\b(\d+)(?:\s*[-–]\s*\d+)?\s*(?:minutes?|mins?)\b/i);
+  if (hourMatch) total += Math.round(parseFloat(hourMatch[1]) * 3600);
+  if (minMatch) total += parseInt(minMatch[1]) * 60;
+  return total > 0 ? total : null;
+}
+
+function formatCountdown(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+interface StepTimer {
+  totalSeconds: number;
+  remaining: number;
+  running: boolean;
+  done: boolean;
 }
 
 export default function RecipeDetailPage() {
@@ -48,6 +71,51 @@ export default function RecipeDetailPage() {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
   const [checkedSteps, setCheckedSteps] = useState<Set<number>>(new Set());
+  const [stepTimers, setStepTimers] = useState<Record<number, StepTimer>>({});
+  const [shoppingCopied, setShoppingCopied] = useState(false);
+
+  // Single interval that ticks all running timers
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStepTimers(prev => {
+        const hasRunning = Object.values(prev).some(t => t.running && t.remaining > 0);
+        if (!hasRunning) return prev;
+        const next = { ...prev };
+        for (const key in next) {
+          const t = next[key];
+          if (t.running) {
+            if (t.remaining > 0) {
+              next[key] = { ...t, remaining: t.remaining - 1 };
+            } else {
+              next[key] = { ...t, running: false, done: true };
+            }
+          }
+        }
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const startTimer = (idx: number, totalSeconds: number) => {
+    setStepTimers(prev => ({
+      ...prev,
+      [idx]: prev[idx]
+        ? { ...prev[idx], running: true, done: false }
+        : { totalSeconds, remaining: totalSeconds, running: true, done: false },
+    }));
+  };
+
+  const pauseTimer = (idx: number) => {
+    setStepTimers(prev => ({ ...prev, [idx]: { ...prev[idx], running: false } }));
+  };
+
+  const resetTimer = (idx: number, totalSeconds: number) => {
+    setStepTimers(prev => ({
+      ...prev,
+      [idx]: { totalSeconds, remaining: totalSeconds, running: false, done: false },
+    }));
+  };
 
   const fetchRecipe = useCallback(async () => {
     const [{ data: recipeData }, { data: pantryData }] = await Promise.all([
@@ -77,9 +145,15 @@ export default function RecipeDetailPage() {
     });
   };
 
+  const effectiveScale = showCustom && customScale ? parseFloat(customScale) || 1 : scale;
+
+  const missingIngredients = recipe && pantryNames.size > 0
+    ? recipe.ingredients.filter(ing => !isInPantry(ing.name))
+    : [];
+
   const getRecipeText = () => {
     if (!recipe) return '';
-    const scaled = recipe.servings * scale;
+    const scaled = recipe.servings * effectiveScale;
     let text = `${recipe.name}\n`;
     if (recipe.description) text += `\n${recipe.description}\n`;
     text += `\nServings: ${scaled}`;
@@ -87,12 +161,16 @@ export default function RecipeDetailPage() {
     if (recipe.cook_time) text += `  |  Cook: ${recipe.cook_time} min`;
     text += `\n\nINGREDIENTS:\n`;
     recipe.ingredients.forEach((ing: RecipeIngredient) => {
-      text += `• ${formatAmount(ing.amount, scale)} ${ing.unit} ${ing.name}\n`;
+      text += `• ${formatAmount(ing.amount, effectiveScale)} ${ing.unit} ${ing.name}\n`;
     });
     text += `\nINSTRUCTIONS:\n`;
     recipe.instructions.forEach((step, i) => {
       text += `${i + 1}. ${step}\n`;
     });
+    if (recipe.notes?.length) {
+      text += `\nCHEF'S NOTES:\n`;
+      recipe.notes.forEach(n => { text += `• ${n}\n`; });
+    }
     if (recipe.tags?.length) text += `\nTags: ${recipe.tags.join(', ')}`;
     return text;
   };
@@ -116,6 +194,15 @@ export default function RecipeDetailPage() {
 
   const handlePrint = () => window.print();
 
+  const handleCopyShoppingList = async () => {
+    const lines = missingIngredients.map(ing =>
+      `• ${formatAmount(ing.amount, effectiveScale)} ${ing.unit} ${ing.name}`
+    ).join('\n');
+    await navigator.clipboard.writeText(`Shopping List for ${recipe?.name}:\n${lines}`);
+    setShoppingCopied(true);
+    setTimeout(() => setShoppingCopied(false), 2000);
+  };
+
   const handleDownloadPdf = async () => {
     if (!recipe) return;
     try {
@@ -127,17 +214,14 @@ export default function RecipeDetailPage() {
       const contentW = W - margin * 2;
       let y = margin;
 
-      // Colors
       const pink: [number, number, number] = [236, 72, 153];
       const purple: [number, number, number] = [139, 92, 246];
       const dark: [number, number, number] = [26, 5, 39];
       const gray: [number, number, number] = [100, 80, 120];
 
-      // Header bar
       doc.setFillColor(...pink);
       doc.rect(0, 0, W, 12, 'F');
 
-      // Title
       y = 22;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(22);
@@ -146,7 +230,6 @@ export default function RecipeDetailPage() {
       doc.text(titleLines, margin, y);
       y += titleLines.length * 9 + 3;
 
-      // Description
       if (recipe.description) {
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(10);
@@ -156,27 +239,24 @@ export default function RecipeDetailPage() {
         y += descLines.length * 5 + 4;
       }
 
-      // Meta row
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(...purple);
-      const scaled = recipe.servings * scale;
+      const scaledServings = recipe.servings * effectiveScale;
       const meta = [
-        `Servings: ${scaled}`,
+        `Servings: ${scaledServings}`,
         recipe.prep_time ? `Prep: ${recipe.prep_time} min` : null,
         recipe.cook_time ? `Cook: ${recipe.cook_time} min` : null,
-        scale !== 1 ? `Scale: ${scale}x` : null,
+        effectiveScale !== 1 ? `Scale: ${effectiveScale}x` : null,
       ].filter(Boolean).join('   ·   ');
       doc.text(meta, margin, y);
       y += 8;
 
-      // Divider
       doc.setDrawColor(...pink);
       doc.setLineWidth(0.5);
       doc.line(margin, y, W - margin, y);
       y += 6;
 
-      // Ingredients
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
       doc.setTextColor(...pink);
@@ -187,19 +267,14 @@ export default function RecipeDetailPage() {
       doc.setFontSize(10);
       doc.setTextColor(...dark);
       recipe.ingredients.forEach((ing: RecipeIngredient) => {
-        const line = `• ${formatAmount(ing.amount, scale)} ${ing.unit} ${ing.name}`;
+        const line = `• ${formatAmount(ing.amount, effectiveScale)} ${ing.unit} ${ing.name}`;
         const lines = doc.splitTextToSize(line, contentW);
-        if (y + lines.length * 5 > 270) {
-          doc.addPage();
-          y = margin;
-        }
+        if (y + lines.length * 5 > 270) { doc.addPage(); y = margin; }
         doc.text(lines, margin + 2, y);
         y += lines.length * 5 + 1;
       });
 
       y += 4;
-
-      // Instructions
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
       doc.setTextColor(...purple);
@@ -212,15 +287,30 @@ export default function RecipeDetailPage() {
       recipe.instructions.forEach((step, i) => {
         const line = `${i + 1}. ${step}`;
         const lines = doc.splitTextToSize(line, contentW);
-        if (y + lines.length * 5 > 270) {
-          doc.addPage();
-          y = margin;
-        }
+        if (y + lines.length * 5 > 270) { doc.addPage(); y = margin; }
         doc.text(lines, margin, y);
         y += lines.length * 5 + 3;
       });
 
-      // Footer
+      if (recipe.notes?.length) {
+        y += 4;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(...pink);
+        doc.text("Chef's Notes", margin, y);
+        y += 7;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...dark);
+        recipe.notes.forEach(note => {
+          const line = `💡 ${note}`;
+          const lines = doc.splitTextToSize(line, contentW);
+          if (y + lines.length * 5 > 270) { doc.addPage(); y = margin; }
+          doc.text(lines, margin + 2, y);
+          y += lines.length * 5 + 2;
+        });
+      }
+
       const pageCount = doc.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -255,8 +345,6 @@ export default function RecipeDetailPage() {
       </div>
     );
   }
-
-  const effectiveScale = showCustom && customScale ? parseFloat(customScale) || 1 : scale;
 
   return (
     <div className="page-content max-w-lg mx-auto" ref={printRef}>
@@ -362,7 +450,6 @@ export default function RecipeDetailPage() {
               </button>
             ))}
           </div>
-          {/* Custom scale */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => { const v = Math.max(0.1, effectiveScale - 0.5); setScale(v); setShowCustom(false); }}
@@ -409,10 +496,7 @@ export default function RecipeDetailPage() {
                   className="flex items-center gap-3 px-4 py-3"
                   style={{ borderBottom: i < recipe.ingredients.length - 1 ? '1px solid var(--border-color)' : 'none' }}
                 >
-                  <div
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ background: 'var(--gradient-brand)' }}
-                  />
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--gradient-brand)' }} />
                   <span className="text-sm flex-1" style={{ color: 'var(--text-primary)' }}>
                     <strong style={{ color: 'var(--accent-primary)' }}>
                       {formatAmount(ing.amount, effectiveScale)} {ing.unit}
@@ -435,6 +519,50 @@ export default function RecipeDetailPage() {
           </div>
         </div>
 
+        {/* Shopping list */}
+        {missingIngredients.length > 0 && (
+          <div className="mb-5 no-print">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+                <ShoppingCart size={16} style={{ color: '#f97316' }} />
+                Shopping List
+                <span className="text-xs font-normal" style={{ color: 'var(--text-muted)' }}>
+                  ({missingIngredients.length} items)
+                </span>
+              </h2>
+              <button
+                onClick={handleCopyShoppingList}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium transition-all"
+                style={{
+                  background: shoppingCopied ? 'rgba(34,197,94,0.12)' : 'var(--glass-bg)',
+                  border: '1px solid var(--border-color)',
+                  color: shoppingCopied ? '#22c55e' : 'var(--text-muted)',
+                }}
+              >
+                {shoppingCopied ? <Check size={11} /> : <Copy size={11} />}
+                {shoppingCopied ? 'Copied!' : 'Copy list'}
+              </button>
+            </div>
+            <div className="glass-card rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(249,115,22,0.2)' }}>
+              {missingIngredients.map((ing, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-3 px-4 py-2.5"
+                  style={{ borderBottom: i < missingIngredients.length - 1 ? '1px solid var(--border-color)' : 'none' }}
+                >
+                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#f97316' }} />
+                  <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                    <strong style={{ color: '#f97316' }}>
+                      {formatAmount(ing.amount, effectiveScale)} {ing.unit}
+                    </strong>
+                    {' '}{ing.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Appliances used */}
         {recipe.appliances_used && recipe.appliances_used.length > 0 && (
           <div className="mb-5">
@@ -453,34 +581,124 @@ export default function RecipeDetailPage() {
         <div className="mb-5">
           <h2 className="text-base font-bold mb-3" style={{ color: 'var(--text-primary)' }}>Instructions</h2>
           <div className="space-y-3">
-            {recipe.instructions.map((step, i) => (
-              <button
-                key={i}
-                className="glass-card rounded-2xl p-4 flex gap-3 w-full text-left transition-all duration-200 no-print"
-                onClick={() => toggleStep(i)}
-                style={{ opacity: checkedSteps.has(i) ? 0.6 : 1 }}
-              >
+            {recipe.instructions.map((step, i) => {
+              const duration = parseStepDuration(step);
+              const timer = stepTimers[i];
+              const isDone = checkedSteps.has(i);
+
+              return (
                 <div
-                  className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all duration-200"
-                  style={{
-                    background: checkedSteps.has(i) ? 'var(--success)' : 'var(--gradient-brand)',
-                    color: 'white',
-                    minWidth: '28px',
-                  }}
+                  key={i}
+                  className="glass-card rounded-2xl p-4 no-print transition-all duration-200"
+                  style={{ opacity: isDone ? 0.55 : 1 }}
                 >
-                  {checkedSteps.has(i) ? <Check size={13} strokeWidth={2.5} /> : i + 1}
+                  <div className="flex gap-3">
+                    {/* Step number / check — clickable */}
+                    <button
+                      onClick={() => toggleStep(i)}
+                      className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all duration-200"
+                      style={{
+                        background: isDone ? 'var(--success)' : 'var(--gradient-brand)',
+                        color: 'white',
+                        minWidth: '28px',
+                      }}
+                    >
+                      {isDone ? <Check size={13} strokeWidth={2.5} /> : i + 1}
+                    </button>
+
+                    {/* Step content */}
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-sm leading-relaxed cursor-pointer"
+                        style={{
+                          color: 'var(--text-primary)',
+                          textDecoration: isDone ? 'line-through' : 'none',
+                        }}
+                        onClick={() => toggleStep(i)}
+                      >
+                        {step}
+                      </p>
+
+                      {/* Timer row */}
+                      {duration && (
+                        <div
+                          className="flex items-center gap-2 mt-2.5"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          {!timer || (!timer.running && !timer.done) ? (
+                            /* Idle state */
+                            <button
+                              onClick={() => startTimer(i, duration)}
+                              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all"
+                              style={{
+                                background: 'rgba(139,92,246,0.1)',
+                                border: '1px solid rgba(139,92,246,0.25)',
+                                color: 'var(--accent-secondary)',
+                              }}
+                            >
+                              <Timer size={11} strokeWidth={2} />
+                              {formatCountdown(timer?.remaining ?? duration)}
+                              <Play size={10} strokeWidth={2.5} />
+                            </button>
+                          ) : timer.done ? (
+                            /* Done state */
+                            <>
+                              <span
+                                className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold"
+                                style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}
+                              >
+                                <Check size={11} strokeWidth={2.5} /> Time&apos;s up!
+                              </span>
+                              <button
+                                onClick={() => resetTimer(i, duration)}
+                                className="flex items-center justify-center w-6 h-6 rounded-full transition-all"
+                                style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+                              >
+                                <RotateCcw size={10} strokeWidth={2} />
+                              </button>
+                            </>
+                          ) : (
+                            /* Running or paused */
+                            <>
+                              <span
+                                className="text-xs font-mono font-bold px-2 py-1 rounded-lg"
+                                style={{
+                                  background: timer.running ? 'rgba(139,92,246,0.15)' : 'var(--glass-bg)',
+                                  color: timer.running ? 'var(--accent-secondary)' : 'var(--text-muted)',
+                                  border: '1px solid var(--border-color)',
+                                  minWidth: '48px',
+                                  textAlign: 'center',
+                                }}
+                              >
+                                {formatCountdown(timer.remaining)}
+                              </span>
+                              <button
+                                onClick={() => timer.running ? pauseTimer(i) : startTimer(i, duration)}
+                                className="flex items-center justify-center w-6 h-6 rounded-full transition-all"
+                                style={{
+                                  background: timer.running ? 'rgba(139,92,246,0.15)' : 'rgba(34,197,94,0.15)',
+                                  border: '1px solid var(--border-color)',
+                                  color: timer.running ? 'var(--accent-secondary)' : '#22c55e',
+                                }}
+                              >
+                                {timer.running ? <Pause size={10} strokeWidth={2.5} /> : <Play size={10} strokeWidth={2.5} />}
+                              </button>
+                              <button
+                                onClick={() => resetTimer(i, duration)}
+                                className="flex items-center justify-center w-6 h-6 rounded-full transition-all"
+                                style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+                              >
+                                <RotateCcw size={10} strokeWidth={2} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <p
-                  className="text-sm leading-relaxed flex-1"
-                  style={{
-                    color: 'var(--text-primary)',
-                    textDecoration: checkedSteps.has(i) ? 'line-through' : 'none',
-                  }}
-                >
-                  {step}
-                </p>
-              </button>
-            ))}
+              );
+            })}
           </div>
           {/* Print-only instructions */}
           <div className="hidden print:block space-y-2">
@@ -491,6 +709,24 @@ export default function RecipeDetailPage() {
             ))}
           </div>
         </div>
+
+        {/* Chef's Notes */}
+        {recipe.notes && recipe.notes.length > 0 && (
+          <div className="mb-5">
+            <h2 className="text-base font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+              <Lightbulb size={16} style={{ color: '#f59e0b' }} />
+              Chef&apos;s Notes
+            </h2>
+            <div className="glass-card rounded-2xl p-4 space-y-3" style={{ border: '1px solid rgba(245,158,11,0.2)' }}>
+              {recipe.notes.map((note, i) => (
+                <div key={i} className="flex gap-2.5">
+                  <span className="text-base flex-shrink-0 mt-0.5">💡</span>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{note}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Tags */}
         {recipe.tags && recipe.tags.length > 0 && (
@@ -522,7 +758,7 @@ export default function RecipeDetailPage() {
             className="flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-all"
             style={{
               background: 'var(--glass-bg)',
-              border: '1px solid var(--border-strong)',
+              border: '1px solid var(--glass-border)',
               color: 'var(--text-primary)',
             }}
           >

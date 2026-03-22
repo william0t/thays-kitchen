@@ -64,10 +64,15 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
   "instructions": [
     "Step 1: detailed instruction",
     "Step 2: detailed instruction"
+  ],
+  "notes": [
+    "Chef tip 1 for making it even better",
+    "Chef tip 2",
+    "Chef tip 3"
   ]
 }
 
-Make the recipe practical, delicious, and achievable with the listed appliances. Instructions should be detailed and clear. Include 6-12 steps.`;
+Make the recipe practical, delicious, and achievable with the listed appliances. Instructions should be detailed and clear. Include 6-12 steps. The notes array should contain 3-5 chef-level tips for elevating the dish — things like ingredient swaps, make-ahead tricks, common mistakes to avoid, wine pairings, or how to store leftovers. These should feel like advice from a chef who has made this dish hundreds of times.`;
 
     const message = await openai.chat.completions.create({
       model: 'gpt-4o',

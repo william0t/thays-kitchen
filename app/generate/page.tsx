@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Sparkles, ChefHat, Settings2, X, Check } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { supabase } from '@/lib/supabase';
@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function GeneratePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuth();
   const [ingredients, setIngredients] = useState<InventoryItem[]>([]);
   const [appliances, setAppliances] = useState<Appliance[]>([]);
@@ -27,6 +28,15 @@ export default function GeneratePage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [useAllInStock, setUseAllInStock] = useState(true);
   const [strictStock, setStrictStock] = useState(false);
+
+  // Pre-fill from inspire mode
+  useEffect(() => {
+    const concept = searchParams.get('concept');
+    if (concept) {
+      setPreferences(concept);
+      setShowAdvanced(true);
+    }
+  }, [searchParams]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -109,6 +119,7 @@ export default function GeneratePage() {
           cook_time: data.recipe.cook_time,
           tags: data.recipe.tags,
           appliances_used: data.recipe.appliances_used,
+          notes: data.recipe.notes ?? null,
           ai_generated: true,
           user_id: user?.id,
         })

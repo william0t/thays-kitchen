@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Refrigerator, Utensils, BookOpen, Sparkles, TrendingUp, ChevronRight, LogOut } from 'lucide-react';
+import { Refrigerator, Utensils, BookOpen, Sparkles, TrendingUp, ChevronRight, LogOut, Wand2 } from 'lucide-react';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
 import { supabase } from '@/lib/supabase';
@@ -104,6 +104,36 @@ export default function HomePage() {
           </div>
           <div className="absolute -right-8 -top-8 w-36 h-36 rounded-full opacity-10" style={{ background: 'white' }} />
           <div className="absolute -right-4 bottom-4 w-20 h-20 rounded-full opacity-10" style={{ background: 'white' }} />
+        </div>
+      </Link>
+
+      {/* Inspire Me card */}
+      <Link href="/inspire">
+        <div
+          className="relative rounded-3xl p-5 mb-6 overflow-hidden cursor-pointer group transition-transform duration-200 hover:scale-[1.01] active:scale-[0.99]"
+          style={{
+            background: 'var(--glass-bg)',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 4px 16px rgba(139,92,246,0.12)',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div
+                className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0"
+                style={{ background: 'rgba(139,92,246,0.12)' }}
+              >
+                <Wand2 size={20} style={{ color: 'var(--accent-secondary)' }} strokeWidth={1.8} />
+              </div>
+              <div>
+                <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Inspire Me</div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Pick an ingredient → 5 dish ideas to explore &amp; shop for
+                </div>
+              </div>
+            </div>
+            <ChevronRight size={18} style={{ color: 'var(--text-muted)' }} />
+          </div>
         </div>
       </Link>
 

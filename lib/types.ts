@@ -55,6 +55,7 @@ export interface Recipe {
   cook_time: number | null;
   tags: string[] | null;
   appliances_used: string[] | null;
+  notes: string[] | null;
   ai_generated: boolean;
   created_at: string;
   updated_at: string;
