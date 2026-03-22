@@ -309,20 +309,21 @@ export default function InventoryPage() {
             <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--border-strong)' }} />
 
             <div className="flex items-center justify-between mb-5">
-              <button onClick={() => setShowModal(false)} style={{ color: 'var(--text-muted)' }}>
-                <X size={20} />
-              </button>
               <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
                 {editingItem ? 'Edit Item' : 'Add Item'}
               </h2>
-              <button
-                onClick={handleSave}
-                disabled={saving || !form.name.trim()}
-                className="btn-gradient px-4 py-2 rounded-xl font-semibold text-sm disabled:opacity-50"
-              >
-                {saving ? 'Saving…' : editingItem ? 'Save' : 'Add'}
+              <button onClick={() => setShowModal(false)} style={{ color: 'var(--text-muted)' }}>
+                <X size={20} />
               </button>
             </div>
+
+            <button
+              onClick={handleSave}
+              disabled={saving || !form.name.trim()}
+              className="btn-gradient w-full py-3 rounded-xl font-semibold disabled:opacity-50 mb-4"
+            >
+              {saving ? 'Saving…' : editingItem ? 'Save Changes' : 'Add Item'}
+            </button>
 
             <div className="space-y-4">
               <div>
