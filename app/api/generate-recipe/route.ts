@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { ingredients, appliances, preferences, servings } = await request.json();
+    const { ingredients, appliances, preferences, servings, useAll } = await request.json();
 
     const ingredientList = ingredients
       .filter((i: { in_stock: boolean }) => i.in_stock)
@@ -20,12 +20,18 @@ export async function POST(request: NextRequest) {
       .map((a: { name: string }) => a.name)
       .join(', ');
 
-    const prompt = `You are a professional chef and recipe creator. Create a delicious, detailed recipe using the ingredients and appliances listed below.
+    const ingredientInstruction = useAll
+      ? `AVAILABLE INGREDIENTS (choose a sensible subset that naturally go together — do NOT use all of them, pick the ones that make a coherent, real-world dish): ${ingredientList || 'Basic pantry staples'}`
+      : `INGREDIENTS TO USE: ${ingredientList || 'Basic pantry staples'}`;
 
-AVAILABLE INGREDIENTS: ${ingredientList || 'Basic pantry staples'}
+    const prompt = `You are a professional chef and recipe creator. Create a delicious, detailed recipe.
+
+${ingredientInstruction}
 AVAILABLE APPLIANCES: ${applianceList || 'Standard stovetop and oven'}
 SERVINGS: ${servings || 4}
 PREFERENCES/NOTES: ${preferences || 'None specified'}
+
+${useAll ? 'IMPORTANT: You are not required to use every ingredient listed. Pick a natural, well-known combination that results in a great dish. Ignore ingredients that would make the dish weird or incoherent.' : 'Use the provided ingredients as the base for the recipe.'}
 
 Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {

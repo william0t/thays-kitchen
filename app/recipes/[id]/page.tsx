@@ -40,6 +40,7 @@ export default function RecipeDetailPage() {
   const printRef = useRef<HTMLDivElement>(null);
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const [pantryNames, setPantryNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [scale, setScale] = useState(1);
   const [customScale, setCustomScale] = useState('');
@@ -49,16 +50,24 @@ export default function RecipeDetailPage() {
   const [checkedSteps, setCheckedSteps] = useState<Set<number>>(new Set());
 
   const fetchRecipe = useCallback(async () => {
-    const { data } = await supabase
-      .from('recipes')
-      .select('*')
-      .eq('id', params.id as string)
-      .single();
-    setRecipe(data);
+    const [{ data: recipeData }, { data: pantryData }] = await Promise.all([
+      supabase.from('recipes').select('*').eq('id', params.id as string).single(),
+      supabase.from('inventory_items').select('name').eq('in_stock', true),
+    ]);
+    setRecipe(recipeData);
+    setPantryNames(new Set((pantryData || []).map((i: { name: string }) => i.name.toLowerCase())));
     setLoading(false);
   }, [params.id]);
 
   useEffect(() => { fetchRecipe(); }, [fetchRecipe]);
+
+  const isInPantry = (ingredientName: string) => {
+    const lower = ingredientName.toLowerCase();
+    for (const p of pantryNames) {
+      if (lower.includes(p) || p.includes(lower)) return true;
+    }
+    return false;
+  };
 
   const toggleStep = (idx: number) => {
     setCheckedSteps((prev) => {
@@ -392,24 +401,37 @@ export default function RecipeDetailPage() {
             </span>
           </h2>
           <div className="glass-card rounded-2xl overflow-hidden">
-            {recipe.ingredients.map((ing: RecipeIngredient, i: number) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 px-4 py-3"
-                style={{ borderBottom: i < recipe.ingredients.length - 1 ? '1px solid var(--border-color)' : 'none' }}
-              >
+            {recipe.ingredients.map((ing: RecipeIngredient, i: number) => {
+              const inPantry = pantryNames.size > 0 ? isInPantry(ing.name) : null;
+              return (
                 <div
-                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                  style={{ background: 'var(--gradient-brand)' }}
-                />
-                <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
-                  <strong style={{ color: 'var(--accent-primary)' }}>
-                    {formatAmount(ing.amount, effectiveScale)} {ing.unit}
-                  </strong>
-                  {' '}{ing.name}
-                </span>
-              </div>
-            ))}
+                  key={i}
+                  className="flex items-center gap-3 px-4 py-3"
+                  style={{ borderBottom: i < recipe.ingredients.length - 1 ? '1px solid var(--border-color)' : 'none' }}
+                >
+                  <div
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ background: 'var(--gradient-brand)' }}
+                  />
+                  <span className="text-sm flex-1" style={{ color: 'var(--text-primary)' }}>
+                    <strong style={{ color: 'var(--accent-primary)' }}>
+                      {formatAmount(ing.amount, effectiveScale)} {ing.unit}
+                    </strong>
+                    {' '}{ing.name}
+                  </span>
+                  {inPantry !== null && (
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={inPantry
+                        ? { background: 'rgba(34,197,94,0.12)', color: '#22c55e' }
+                        : { background: 'rgba(249,115,22,0.12)', color: '#f97316' }}
+                    >
+                      {inPantry ? 'In pantry' : 'Need to buy'}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 

@@ -84,6 +84,7 @@ export default function GeneratePage() {
           appliances: selectedApps,
           preferences,
           servings,
+          useAll: useAllInStock,
         }),
       });
 
