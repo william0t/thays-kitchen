@@ -316,7 +316,7 @@ export default function GeneratePage() {
           {generating && (
             <p className="text-center text-sm animate-pulse" style={{ color: 'var(--text-muted)' }}>
               <ChefHat size={14} className="inline mr-1" />
-              Claude is crafting something delicious for you…
+              ChatGPT is crafting something delicious for you…
             </p>
           )}
         </div>

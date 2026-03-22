@@ -1,8 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { NextRequest, NextResponse } from 'next/server';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(request: NextRequest) {
@@ -47,13 +47,13 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
 
 Make the recipe practical, delicious, and achievable with the listed appliances. Instructions should be detailed and clear. Include 6-12 steps.`;
 
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+    const message = await openai.chat.completions.create({
+      model: 'gpt-4o',
       max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const jsonText = (message.content[0].type === 'text' ? message.content[0].text : '').trim();
+    const jsonText = (message.choices[0].message.content ?? '').trim();
     const recipe = JSON.parse(jsonText);
 
     return NextResponse.json({ recipe });
