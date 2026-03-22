@@ -7,6 +7,29 @@ import { ChefHat } from 'lucide-react';
 
 type Mode = 'login' | 'signup' | 'forgot';
 
+function friendlyAuthError(raw: string): string {
+  const msg = raw.toLowerCase();
+  if (msg.includes('rate limit') || msg.includes('email rate limit')) {
+    return 'Too many sign-up emails sent today. Please try again in an hour, or contact the app owner.';
+  }
+  if (msg.includes('only request this after')) {
+    // Extract the seconds from the message if present
+    const match = raw.match(/after (\d+) second/i);
+    const wait = match ? `${match[1]} seconds` : 'a moment';
+    return `Please wait ${wait} before trying again.`;
+  }
+  if (msg.includes('user already registered') || msg.includes('already been registered')) {
+    return 'An account with this email already exists. Try signing in instead.';
+  }
+  if (msg.includes('invalid login credentials') || msg.includes('invalid credentials')) {
+    return 'Incorrect email or password.';
+  }
+  if (msg.includes('email not confirmed')) {
+    return 'Please confirm your email first — check your inbox for the link we sent.';
+  }
+  return raw;
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('login');
@@ -44,7 +67,8 @@ export default function LoginPage() {
         setMessage('Password reset email sent — check your inbox.');
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const raw = err instanceof Error ? err.message : 'Something went wrong';
+      setError(friendlyAuthError(raw));
     } finally {
       setLoading(false);
     }
