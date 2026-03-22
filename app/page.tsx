@@ -4,10 +4,11 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Refrigerator, Utensils, BookOpen, Sparkles, TrendingUp, ChevronRight } from 'lucide-react';
+import { Refrigerator, Utensils, BookOpen, Sparkles, TrendingUp, ChevronRight, LogOut } from 'lucide-react';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Stats {
   inventoryCount: number;
@@ -17,6 +18,7 @@ interface Stats {
 }
 
 export default function HomePage() {
+  const { signOut } = useAuth();
   const [stats, setStats] = useState<Stats>({
     inventoryCount: 0,
     inStockCount: 0,
@@ -63,7 +65,17 @@ export default function HomePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <Logo size={44} showText />
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            onClick={signOut}
+            className="flex items-center justify-center w-9 h-9 rounded-xl transition-all"
+            style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}
+            title="Sign out"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Hero CTA */}

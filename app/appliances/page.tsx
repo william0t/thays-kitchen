@@ -12,6 +12,7 @@ import {
   APPLIANCE_CATEGORY_LABELS,
   APPLIANCE_EMOJIS,
 } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CATEGORIES = Object.keys(APPLIANCE_CATEGORY_LABELS) as ApplianceCategory[];
 
@@ -24,6 +25,7 @@ interface FormData {
 const defaultForm: FormData = { name: '', category: 'cooking', notes: '' };
 
 export default function AppliancesPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<Appliance[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -63,7 +65,7 @@ export default function AppliancesPage() {
     if (!form.name.trim()) return;
     setSaving(true);
     try {
-      const payload = { name: form.name.trim(), category: form.category, notes: form.notes.trim() || null };
+      const payload = { name: form.name.trim(), category: form.category, notes: form.notes.trim() || null, user_id: user?.id };
       if (editingItem) {
         await supabase.from('appliances').update(payload).eq('id', editingItem.id);
       } else {

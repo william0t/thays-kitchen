@@ -8,9 +8,11 @@ import { Sparkles, ChefHat, Settings2, X, Check } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { supabase } from '@/lib/supabase';
 import { InventoryItem, Appliance, CATEGORY_EMOJIS, CATEGORY_LABELS, InventoryCategory } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function GeneratePage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [ingredients, setIngredients] = useState<InventoryItem[]>([]);
   const [appliances, setAppliances] = useState<Appliance[]>([]);
   const [loading, setLoading] = useState(true);
@@ -105,6 +107,7 @@ export default function GeneratePage() {
           tags: data.recipe.tags,
           appliances_used: data.recipe.appliances_used,
           ai_generated: true,
+          user_id: user?.id,
         })
         .select()
         .single();

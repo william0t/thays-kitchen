@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Refrigerator, Sparkles, BookOpen, Utensils } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Home' },
@@ -14,6 +15,9 @@ const navItems = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  if (!user || pathname === '/login') return null;
 
   return (
     <nav

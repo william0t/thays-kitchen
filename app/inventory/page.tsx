@@ -13,6 +13,7 @@ import {
   CATEGORY_EMOJIS,
   COMMON_UNITS,
 } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS) as InventoryCategory[];
 
@@ -35,6 +36,7 @@ const defaultForm: FormData = {
 };
 
 export default function InventoryPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -91,6 +93,7 @@ export default function InventoryPage() {
         unit: form.unit || null,
         notes: form.notes.trim() || null,
         in_stock: form.in_stock,
+        user_id: user?.id,
       };
 
       if (editingItem) {
