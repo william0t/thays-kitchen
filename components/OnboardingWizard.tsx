@@ -96,14 +96,18 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
     setStep('saving');
     setError('');
     try {
-      const promises: PromiseLike<unknown>[] = [];
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+
+      const results: { error: { message: string } | null }[] = [];
 
       if (selectedAppliances.size > 0) {
         const applianceRows = PRESET_APPLIANCES.filter((a) => selectedAppliances.has(a.name)).map((a) => ({
           name: a.name,
           category: a.category,
+          user_id: userId,
         }));
-        promises.push(supabase.from('appliances').insert(applianceRows).then((r) => r));
+        results.push(await supabase.from('appliances').insert(applianceRows));
       }
 
       if (selectedFoods.size > 0) {
@@ -111,11 +115,14 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
           name: f.name,
           category: f.category,
           in_stock: true,
+          user_id: userId,
         }));
-        promises.push(supabase.from('inventory_items').insert(foodRows).then((r) => r));
+        results.push(await supabase.from('inventory_items').insert(foodRows));
       }
 
-      await Promise.all(promises);
+      const failed = results.find((r) => r.error);
+      if (failed?.error) throw new Error(failed.error.message);
+
       onComplete();
     } catch {
       setError('Something went wrong saving your items. Please try again.');
@@ -137,8 +144,8 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
       <div
         className="relative w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl flex flex-col"
         style={{
-          background: 'var(--bg-primary)',
-          border: '1px solid var(--glass-border)',
+          background: 'var(--bg-surface-solid)',
+          border: '1px solid var(--border-color)',
           maxHeight: '90dvh',
         }}
       >
@@ -153,7 +160,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
                   else onClose();
                 }}
                 className="flex items-center justify-center w-8 h-8 rounded-xl transition-all"
-                style={{ background: 'var(--glass-bg)', color: 'var(--text-muted)' }}
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
               >
                 <ChevronLeft size={18} />
               </button>
@@ -177,7 +184,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
           <button
             onClick={onClose}
             className="flex items-center justify-center w-8 h-8 rounded-xl transition-all flex-shrink-0"
-            style={{ background: 'var(--glass-bg)', color: 'var(--text-muted)' }}
+            style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
           >
             <X size={16} />
           </button>
@@ -186,7 +193,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
         {/* Progress bar */}
         {step !== 'saving' && steps.length > 1 && (
           <div className="px-5 pb-2 flex-shrink-0">
-            <div className="h-1 rounded-full" style={{ background: 'var(--glass-bg)' }}>
+            <div className="h-1 rounded-full" style={{ background: 'var(--border-color)' }}>
               <div
                 className="h-1 rounded-full transition-all duration-500"
                 style={{ width: `${progress * 100}%`, background: 'var(--gradient-brand)' }}
@@ -234,7 +241,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
               {/* Search */}
               <div
                 className="flex items-center gap-2 rounded-xl px-3 py-2 mb-4"
-                style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
               >
                 <Search size={14} style={{ color: 'var(--text-muted)' }} />
                 <input
@@ -255,7 +262,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
                 return (
                   <div key={cat} className="mb-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
                         {APPLIANCE_EMOJIS[cat]} {t(`acat_${cat}`)}
                       </span>
                       {!applianceSearch && (
@@ -284,9 +291,9 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
                                     border: '1px solid transparent',
                                   }
                                 : {
-                                    background: 'var(--glass-bg)',
-                                    color: 'var(--text-secondary)',
-                                    border: '1px solid var(--glass-border)',
+                                    background: 'var(--bg-elevated)',
+                                    color: 'var(--text-primary)',
+                                    border: '1px solid var(--border-color)',
                                   }
                             }
                           >
@@ -311,7 +318,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
               {/* Search */}
               <div
                 className="flex items-center gap-2 rounded-xl px-3 py-2 mb-4"
-                style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}
+                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
               >
                 <Search size={14} style={{ color: 'var(--text-muted)' }} />
                 <input
@@ -331,7 +338,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
                 return (
                   <div key={cat} className="mb-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                      <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
                         {CATEGORY_EMOJIS[cat]} {t(`cat_${cat}`)}
                       </span>
                       {!foodSearch && (
@@ -360,9 +367,9 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
                                     border: '1px solid transparent',
                                   }
                                 : {
-                                    background: 'var(--glass-bg)',
-                                    color: 'var(--text-secondary)',
-                                    border: '1px solid var(--glass-border)',
+                                    background: 'var(--bg-elevated)',
+                                    color: 'var(--text-primary)',
+                                    border: '1px solid var(--border-color)',
                                   }
                             }
                           >
@@ -385,7 +392,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
 
         {/* Footer */}
         {step !== 'saving' && (
-          <div className="px-5 pb-6 pt-3 flex-shrink-0" style={{ borderTop: '1px solid var(--glass-border)' }}>
+          <div className="px-5 pb-6 pt-3 flex-shrink-0" style={{ borderTop: '1px solid var(--border-color)' }}>
             {step === 'welcome' && (
               <button
                 onClick={() => setStep('appliances')}
@@ -401,7 +408,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
                 <button
                   onClick={() => setStep('foods')}
                   className="text-sm font-medium py-3 px-4 rounded-2xl transition-all"
-                  style={{ color: 'var(--text-muted)', background: 'var(--glass-bg)' }}
+                  style={{ color: 'var(--text-secondary)', background: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
                 >
                   {t('wiz_skip')}
                 </button>
@@ -419,7 +426,7 @@ export default function OnboardingWizard({ onClose, onComplete, isFirstTime = fa
                 <button
                   onClick={handleSave}
                   className="text-sm font-medium py-3 px-4 rounded-2xl transition-all"
-                  style={{ color: 'var(--text-muted)', background: 'var(--glass-bg)' }}
+                  style={{ color: 'var(--text-secondary)', background: 'var(--bg-elevated)', border: '1px solid var(--border-color)' }}
                 >
                   {t('wiz_skip')}
                 </button>

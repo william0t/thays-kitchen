@@ -5,16 +5,18 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function POST(request: NextRequest) {
   try {
-    const { seedIngredients, pantryItems } = await request.json();
+    const { seedIngredients } = await request.json();
 
-    const pantryList = (pantryItems as string[]).join(', ') || 'basic pantry staples';
+    const prompt = `You are a knowledgeable chef helping a home cook find recipe inspiration. Their star ingredient is: ${seedIngredients}
 
-    const prompt = `You are an imaginative chef. A home cook has ${seedIngredients} and wants recipe inspiration.
-Their full pantry includes: ${pantryList}
+Give them 5 distinct, real-world recipe ideas where "${seedIngredients}" is the hero ingredient. These should be actual dishes people cook and love — not invented mashups or bizarre fusions. Shopping for extra ingredients is fine; this is about inspiration, not pantry limits.
 
-Give them 5 exciting, distinct recipe ideas they could make with these as the star ingredient(s). These can require additional shopping — the point is to inspire, not to limit.
-
-For each idea, be creative and specific (e.g., "Thai Basil Chicken Stir-Fry" not just "Chicken Stir-Fry").
+Rules:
+- Every idea must be a recognizable dish (or a clear, well-established variation). No made-up ingredient combos.
+- The star ingredient must be central to the dish, not just a garnish.
+- Vary the cuisine and cooking style across the 5 ideas (e.g. don't suggest 5 stir-fries).
+- Be specific with dish names: "Miso-Glazed Salmon with Bok Choy" beats "Salmon Dish".
+- The dish name must not include the word "${seedIngredients}" used in a nonsensical way (e.g. "${seedIngredients} spaghetti" is only acceptable if that is a real dish).
 
 Return ONLY valid JSON, no markdown:
 {

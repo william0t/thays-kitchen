@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Clock, Users, Printer, Download, Share2, Copy,
   Check, ChefHat, Sparkles, Minus, Plus, Timer, Play, Pause,
-  RotateCcw, ShoppingCart, Lightbulb,
+  RotateCcw, ShoppingCart, Lightbulb, Wand2, SendHorizontal,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Recipe, RecipeIngredient } from '@/lib/types';
@@ -77,6 +77,17 @@ export default function RecipeDetailPage() {
   const [shoppingCopied, setShoppingCopied] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [completedMsg, setCompletedMsg] = useState('');
+
+  // Iteration widget
+  type IterIntensity = 'tweak' | 'rework' | 'reinvent';
+  const [iterRequest, setIterRequest] = useState('');
+  const [iterIntensity, setIterIntensity] = useState<IterIntensity>('rework');
+  const [iterLoading, setIterLoading] = useState(false);
+  const [iterResult, setIterResult] = useState<Recipe | null>(null);
+  const [iterSaving, setIterSaving] = useState(false);
+  const [iterSaved, setIterSaved] = useState(false);
+  const [iterReplacing, setIterReplacing] = useState(false);
+  const [iterError, setIterError] = useState('');
 
   // Single interval that ticks all running timers
   useEffect(() => {
@@ -276,6 +287,66 @@ export default function RecipeDetailPage() {
     }
   };
 
+  const handleIterateRecipe = async () => {
+    if (!recipe || !iterRequest.trim() || iterLoading) return;
+    setIterLoading(true);
+    setIterError('');
+    setIterResult(null);
+    try {
+      const res = await fetch('/api/iterate-recipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipe, userRequest: iterRequest.trim(), intensity: iterIntensity }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed');
+      setIterResult(data.recipe);
+    } catch (e) {
+      setIterError(e instanceof Error ? e.message : t('iter_error'));
+    } finally {
+      setIterLoading(false);
+    }
+  };
+
+  const handleSaveIterAsNew = async () => {
+    if (!iterResult || iterSaving) return;
+    setIterSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from('recipes').insert({
+        ...iterResult,
+        user_id: user?.id,
+        ai_generated: true,
+      });
+      if (error) throw error;
+      setIterSaved(true);
+      setTimeout(() => setIterSaved(false), 3000);
+    } catch {
+      setIterError(t('iter_error'));
+    } finally {
+      setIterSaving(false);
+    }
+  };
+
+  const handleReplaceRecipe = async () => {
+    if (!recipe || !iterResult || iterReplacing) return;
+    setIterReplacing(true);
+    try {
+      const { error } = await supabase
+        .from('recipes')
+        .update({ ...iterResult })
+        .eq('id', recipe.id);
+      if (error) throw error;
+      setRecipe({ ...recipe, ...iterResult });
+      setIterResult(null);
+      setIterRequest('');
+    } catch {
+      setIterError(t('iter_error'));
+    } finally {
+      setIterReplacing(false);
+    }
+  };
+
   const handleDownloadPdf = async () => {
     if (!recipe) return;
     try {
@@ -469,6 +540,91 @@ export default function RecipeDetailPage() {
             <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               {recipe.description}
             </p>
+          )}
+        </div>
+
+        {/* Iteration widget */}
+        <div className="glass-card rounded-2xl p-4 mb-5 no-print">
+          <div className="flex items-center gap-2 mb-3">
+            <Wand2 size={15} style={{ color: 'var(--accent-primary)' }} />
+            <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{t('iter_heading')}</span>
+          </div>
+
+          {/* Intensity selector */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            {(['tweak', 'rework', 'reinvent'] as const).map((level) => (
+              <button
+                key={level}
+                onClick={() => setIterIntensity(level)}
+                className="flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl text-xs font-medium transition-all"
+                style={
+                  iterIntensity === level
+                    ? { background: 'var(--gradient-brand)', color: 'white', border: '1px solid transparent' }
+                    : { background: 'var(--glass-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }
+                }
+              >
+                <span className="font-semibold text-xs">{t(`iter_${level}`)}</span>
+                <span className="text-[10px] opacity-75">{t(`iter_${level}_sub`)}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Text input + send */}
+          <div className="flex gap-2">
+            <textarea
+              value={iterRequest}
+              onChange={(e) => setIterRequest(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleIterateRecipe(); }
+              }}
+              placeholder={t('iter_placeholder')}
+              rows={2}
+              className="input-field flex-1 px-3 py-2 rounded-xl text-sm resize-none"
+              style={{ color: 'var(--text-primary)' }}
+            />
+            <button
+              onClick={handleIterateRecipe}
+              disabled={iterLoading || !iterRequest.trim()}
+              className="flex items-center justify-center w-10 h-10 self-end rounded-xl btn-gradient transition-all disabled:opacity-50"
+            >
+              {iterLoading
+                ? <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                : <SendHorizontal size={16} />}
+            </button>
+          </div>
+
+          {iterLoading && (
+            <p className="text-xs mt-2 text-center" style={{ color: 'var(--text-muted)' }}>{t('iter_submitting')}</p>
+          )}
+          {iterError && (
+            <p className="text-xs mt-2 text-red-500">{iterError}</p>
+          )}
+
+          {/* Result preview */}
+          {iterResult && (
+            <div className="mt-3 rounded-xl p-3" style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)' }}>
+              <p className="text-sm font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{iterResult.name}</p>
+              {iterResult.description && (
+                <p className="text-xs mb-3 leading-relaxed" style={{ color: 'var(--text-muted)' }}>{iterResult.description}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveIterAsNew}
+                  disabled={iterSaving || iterSaved}
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all btn-gradient disabled:opacity-70"
+                >
+                  {iterSaved ? t('iter_saved') : iterSaving ? t('iter_saving') : t('iter_save_version')}
+                </button>
+                <button
+                  onClick={handleReplaceRecipe}
+                  disabled={iterReplacing}
+                  className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
+                  style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+                >
+                  {iterReplacing ? t('iter_replacing') : t('iter_replace')}
+                </button>
+              </div>
+            </div>
           )}
         </div>
 
