@@ -58,9 +58,10 @@ Make the recipe practical, delicious, and achievable with the listed appliances.
 
     return NextResponse.json({ recipe });
   } catch (error) {
-    console.error('Recipe generation error:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Recipe generation error:', message);
     return NextResponse.json(
-      { error: 'Failed to generate recipe. Please check your API key and try again.' },
+      { error: message },
       { status: 500 }
     );
   }
