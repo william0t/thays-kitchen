@@ -166,8 +166,8 @@ export default function AppliancesPage() {
           onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
         >
           <div
-            className="w-full max-w-lg rounded-t-3xl p-6 animate-slide-up"
-            style={{ background: 'var(--bg-surface-solid)', border: '1px solid var(--border-color)', maxHeight: '85vh', overflowY: 'auto' }}
+            className="w-full max-w-lg rounded-t-3xl p-6 pb-28 animate-slide-up"
+            style={{ background: 'var(--bg-surface-solid)', border: '1px solid var(--border-color)', maxHeight: '92vh', overflowY: 'auto' }}
           >
             <div className="w-10 h-1 rounded-full mx-auto mb-5" style={{ background: 'var(--border-strong)' }} />
             <div className="flex items-center justify-between mb-5">
@@ -178,6 +178,13 @@ export default function AppliancesPage() {
                 <X size={20} />
               </button>
             </div>
+            <button
+              onClick={handleSave}
+              disabled={saving || !form.name.trim()}
+              className="btn-gradient w-full py-3 rounded-xl font-semibold disabled:opacity-50 mb-4"
+            >
+              {saving ? 'Saving…' : editingItem ? 'Save Changes' : 'Add Tool'}
+            </button>
             <div className="space-y-4">
               <div>
                 <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Name *</label>
@@ -219,13 +226,6 @@ export default function AppliancesPage() {
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 />
               </div>
-              <button
-                onClick={handleSave}
-                disabled={saving || !form.name.trim()}
-                className="btn-gradient w-full py-3 rounded-xl font-semibold disabled:opacity-50"
-              >
-                {saving ? 'Saving…' : editingItem ? 'Save Changes' : 'Add Tool'}
-              </button>
             </div>
           </div>
         </div>
