@@ -5,14 +5,22 @@ import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { ChefHat } from 'lucide-react';
 
+type Mode = 'login' | 'signup' | 'forgot';
+
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    setError('');
+    setMessage('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,10 +33,15 @@ export default function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         router.push('/');
-      } else {
+      } else if (mode === 'signup') {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         setMessage('Check your email for a confirmation link, then come back to log in.');
+      } else {
+        const redirectTo = `${window.location.origin}/auth/reset-password`;
+        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+        if (error) throw error;
+        setMessage('Password reset email sent — check your inbox.');
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -36,6 +49,12 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  const subtitle = mode === 'login'
+    ? 'Sign in to your kitchen'
+    : mode === 'signup'
+    ? 'Create your account'
+    : 'Reset your password';
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--bg-base)' }}>
@@ -48,17 +67,12 @@ export default function LoginPage() {
           >
             <ChefHat size={32} color="white" />
           </div>
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Thay's Kitchen</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
-            {mode === 'login' ? 'Sign in to your kitchen' : 'Create your account'}
-          </p>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Thay&apos;s Kitchen</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>
         </div>
 
         {/* Form */}
-        <div
-          className="glass-card rounded-2xl p-6"
-          style={{ border: '1px solid var(--border-color)' }}
-        >
+        <div className="glass-card rounded-2xl p-6" style={{ border: '1px solid var(--border-color)' }}>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Email</label>
@@ -72,18 +86,33 @@ export default function LoginPage() {
                 autoFocus
               />
             </div>
-            <div>
-              <label className="text-xs font-medium mb-1.5 block" style={{ color: 'var(--text-muted)' }}>Password</label>
-              <input
-                type="password"
-                className="input-field w-full px-3 py-2.5 rounded-xl text-sm"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
+
+            {mode !== 'forgot' && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Password</label>
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode('forgot')}
+                      className="text-xs"
+                      style={{ color: 'var(--accent-secondary)' }}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  className="input-field w-full px-3 py-2.5 rounded-xl text-sm"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+            )}
 
             {error && (
               <p className="text-sm px-3 py-2 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)' }}>
@@ -101,18 +130,34 @@ export default function LoginPage() {
               disabled={loading}
               className="btn-gradient w-full py-3 rounded-xl font-semibold disabled:opacity-50"
             >
-              {loading ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'}
+              {loading
+                ? 'Please wait…'
+                : mode === 'login'
+                ? 'Sign In'
+                : mode === 'signup'
+                ? 'Create Account'
+                : 'Send Reset Email'}
             </button>
           </form>
 
-          <div className="mt-4 text-center">
-            <button
-              onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setMessage(''); }}
-              className="text-sm"
-              style={{ color: 'var(--accent-secondary)' }}
-            >
-              {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-            </button>
+          <div className="mt-4 text-center space-y-2">
+            {mode === 'forgot' ? (
+              <button
+                onClick={() => switchMode('login')}
+                className="text-sm"
+                style={{ color: 'var(--accent-secondary)' }}
+              >
+                ← Back to sign in
+              </button>
+            ) : (
+              <button
+                onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
+                className="text-sm"
+                style={{ color: 'var(--accent-secondary)' }}
+              >
+                {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+              </button>
+            )}
           </div>
         </div>
       </div>
