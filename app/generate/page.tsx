@@ -30,6 +30,9 @@ export default function GeneratePage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [useAllInStock, setUseAllInStock] = useState(true);
   const [strictStock, setStrictStock] = useState(false);
+  const [skillLevel, setSkillLevel] = useState<'novice' | 'home_cook' | 'pro'>('home_cook');
+  const [lazy, setLazy] = useState(false);
+  const [adventurous, setAdventurous] = useState(false);
 
   // Pre-fill from inspire mode
   useEffect(() => {
@@ -79,6 +82,13 @@ export default function GeneratePage() {
     });
   };
 
+  const selectAllAppliances = () => setSelectedAppliances(new Set(appliances.map((a) => a.id)));
+  const deselectAllAppliances = () => setSelectedAppliances(new Set());
+
+  const inStockIds = ingredients.filter((i) => i.in_stock).map((i) => i.id);
+  const selectAllIngredients = () => { setSelectedIngredients(new Set(inStockIds)); setUseAllInStock(false); };
+  const deselectAllIngredients = () => { setSelectedIngredients(new Set()); setUseAllInStock(false); };
+
   const handleGenerate = async () => {
     setGenerating(true);
     setError('');
@@ -99,6 +109,9 @@ export default function GeneratePage() {
           servings,
           useAll: useAllInStock,
           strictStock,
+          skillLevel,
+          lazy,
+          adventurous,
         }),
       });
 
@@ -203,6 +216,23 @@ export default function GeneratePage() {
 
             {!useAllInStock && (
               <div className="space-y-3 mt-3">
+                {/* Select / Deselect all row */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={selectAllIngredients}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                    style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+                  >
+                    {t('gen_select_all')}
+                  </button>
+                  <button
+                    onClick={deselectAllIngredients}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                    style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+                  >
+                    {t('gen_deselect_all')}
+                  </button>
+                </div>
                 {(Object.keys(grouped) as InventoryCategory[]).map((cat) => (
                   <div key={cat}>
                     <div className="text-xs font-medium mb-1.5 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
@@ -240,7 +270,27 @@ export default function GeneratePage() {
 
           {/* Appliances */}
           <div className="glass-card rounded-2xl p-4">
-            <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{t('gen_appliances')}</div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('gen_appliances')}</div>
+              {appliances.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={selectAllAppliances}
+                    className="px-2 py-1 rounded-full text-xs font-medium transition-all"
+                    style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+                  >
+                    {t('gen_select_all')}
+                  </button>
+                  <button
+                    onClick={deselectAllAppliances}
+                    className="px-2 py-1 rounded-full text-xs font-medium transition-all"
+                    style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+                  >
+                    {t('gen_deselect_all')}
+                  </button>
+                </div>
+              )}
+            </div>
             {appliances.length === 0 ? (
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('gen_no_appliances')}</p>
             ) : (
@@ -285,6 +335,86 @@ export default function GeneratePage() {
                   {n}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Cooking Skill Level */}
+          <div className="glass-card rounded-2xl p-4">
+            <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{t('gen_skill_level')}</div>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { key: 'novice', label: t('gen_skill_novice'), sub: t('gen_skill_novice_sub'), emoji: '🍳' },
+                { key: 'home_cook', label: t('gen_skill_home_cook'), sub: t('gen_skill_home_cook_sub'), emoji: '📖' },
+                { key: 'pro', label: t('gen_skill_pro'), sub: t('gen_skill_pro_sub'), emoji: '👨‍🍳' },
+              ] as const).map(({ key, label, sub, emoji }) => (
+                <button
+                  key={key}
+                  onClick={() => setSkillLevel(key)}
+                  className="flex flex-col items-center gap-1 py-3 px-2 rounded-xl text-xs font-medium transition-all"
+                  style={
+                    skillLevel === key
+                      ? { background: 'var(--gradient-brand)', color: 'white', border: '1px solid transparent' }
+                      : { background: 'var(--glass-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }
+                  }
+                >
+                  <span className="text-base">{emoji}</span>
+                  <span className="font-bold text-xs">{label}</span>
+                  <span className="text-[10px] opacity-75 text-center leading-tight">{sub}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Mood toggles */}
+          <div className="glass-card rounded-2xl p-4">
+            <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{t('gen_mood')}</div>
+            <div className="space-y-2">
+              <button
+                onClick={() => { setLazy(!lazy); if (!lazy) setAdventurous(false); }}
+                className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all text-left"
+                style={{
+                  background: lazy ? 'rgba(99, 102, 241, 0.12)' : 'var(--glass-bg)',
+                  border: `1px solid ${lazy ? 'rgba(99, 102, 241, 0.35)' : 'var(--border-color)'}`,
+                }}
+              >
+                <span className="text-xl flex-shrink-0">🛋️</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold" style={{ color: lazy ? 'rgb(99 102 241)' : 'var(--text-primary)' }}>{t('gen_mood_lazy')}</div>
+                  <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('gen_mood_lazy_sub')}</div>
+                </div>
+                <div
+                  className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all"
+                  style={{
+                    background: lazy ? 'rgb(99 102 241)' : 'transparent',
+                    border: `1.5px solid ${lazy ? 'rgb(99 102 241)' : 'var(--border-color)'}`,
+                  }}
+                >
+                  {lazy && <Check size={10} strokeWidth={3} color="white" />}
+                </div>
+              </button>
+              <button
+                onClick={() => { setAdventurous(!adventurous); if (!adventurous) setLazy(false); }}
+                className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all text-left"
+                style={{
+                  background: adventurous ? 'rgba(236, 72, 153, 0.12)' : 'var(--glass-bg)',
+                  border: `1px solid ${adventurous ? 'rgba(236, 72, 153, 0.35)' : 'var(--border-color)'}`,
+                }}
+              >
+                <span className="text-xl flex-shrink-0">🔥</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-semibold" style={{ color: adventurous ? 'var(--accent-primary)' : 'var(--text-primary)' }}>{t('gen_mood_adventurous')}</div>
+                  <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('gen_mood_adventurous_sub')}</div>
+                </div>
+                <div
+                  className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all"
+                  style={{
+                    background: adventurous ? 'var(--accent-primary)' : 'transparent',
+                    border: `1.5px solid ${adventurous ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                  }}
+                >
+                  {adventurous && <Check size={10} strokeWidth={3} color="white" />}
+                </div>
+              </button>
             </div>
           </div>
 

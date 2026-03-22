@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft, Clock, Users, Printer, Download, Share2, Copy,
   Check, ChefHat, Sparkles, Minus, Plus, Timer, Play, Pause,
-  RotateCcw, ShoppingCart, Lightbulb, Wand2, SendHorizontal,
+  RotateCcw, ShoppingCart, Lightbulb, Wand2, SendHorizontal, UtensilsCrossed,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Recipe, RecipeIngredient } from '@/lib/types';
@@ -58,6 +58,15 @@ interface StepTimer {
   done: boolean;
 }
 
+interface SideDish {
+  name: string;
+  description: string;
+  emoji: string;
+  difficulty: 'novice' | 'home_cook' | 'pro';
+  estimatedMinutes: number;
+  isStoreBought: boolean;
+}
+
 export default function RecipeDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -88,6 +97,11 @@ export default function RecipeDetailPage() {
   const [iterSaved, setIterSaved] = useState(false);
   const [iterReplacing, setIterReplacing] = useState(false);
   const [iterError, setIterError] = useState('');
+
+  // Side dishes
+  const [sideDishes, setSideDishes] = useState<SideDish[]>([]);
+  const [sidesLoading, setSidesLoading] = useState(false);
+  const [generatingSide, setGeneratingSide] = useState<string | null>(null);
 
   // Single interval that ticks all running timers
   useEffect(() => {
@@ -143,6 +157,25 @@ export default function RecipeDetailPage() {
   }, [params.id]);
 
   useEffect(() => { fetchRecipe(); }, [fetchRecipe]);
+
+  const fetchSideDishes = useCallback(async (r: Recipe) => {
+    setSidesLoading(true);
+    try {
+      const res = await fetch('/api/side-dishes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipe: { name: r.name, description: r.description, tags: r.tags, prep_time: r.prep_time, cook_time: r.cook_time } }),
+      });
+      const data = await res.json();
+      if (data.sides) setSideDishes(data.sides);
+    } catch {
+      // Side dishes are non-critical; fail silently
+    } finally {
+      setSidesLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { if (recipe) fetchSideDishes(recipe); }, [recipe, fetchSideDishes]);
 
   const isInPantry = (ingredientName: string) => {
     const lower = ingredientName.toLowerCase();
@@ -344,6 +377,51 @@ export default function RecipeDetailPage() {
       setIterError(t('iter_error'));
     } finally {
       setIterReplacing(false);
+    }
+  };
+
+  const handleSideDishClick = async (side: SideDish) => {
+    if (generatingSide) return;
+    setGeneratingSide(side.name);
+    try {
+      const res = await fetch('/api/side-dish-recipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sideDish: side,
+          mainRecipeName: recipe?.name ?? '',
+          mainRecipeTags: recipe?.tags ?? [],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: saved, error: saveError } = await supabase
+        .from('recipes')
+        .insert({
+          name: data.recipe.name,
+          description: data.recipe.description,
+          ingredients: data.recipe.ingredients,
+          instructions: data.recipe.instructions,
+          servings: data.recipe.servings,
+          prep_time: data.recipe.prep_time,
+          cook_time: data.recipe.cook_time,
+          tags: data.recipe.tags,
+          appliances_used: data.recipe.appliances_used,
+          notes: data.recipe.notes ?? null,
+          ai_generated: true,
+          user_id: user?.id,
+        })
+        .select()
+        .single();
+
+      if (saveError) throw saveError;
+      router.push(`/recipes/${saved.id}`);
+    } catch {
+      // Just clear loading — user can try again
+    } finally {
+      setGeneratingSide(null);
     }
   };
 
@@ -954,6 +1032,76 @@ export default function RecipeDetailPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Recommended Side Dishes */}
+        {(sidesLoading || sideDishes.length > 0) && (
+          <div className="mb-5 no-print">
+            <div className="flex items-center gap-2 mb-1">
+              <UtensilsCrossed size={15} style={{ color: 'var(--accent-primary)' }} />
+              <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{t('rd_side_dishes')}</h2>
+            </div>
+            <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>{t('rd_side_dishes_sub')}</p>
+
+            {sidesLoading ? (
+              <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="loading-shimmer flex-shrink-0 w-40 h-36 rounded-2xl" />
+                ))}
+              </div>
+            ) : (
+              <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+                {sideDishes.map((side) => {
+                  const isGenerating = generatingSide === side.name;
+                  return (
+                    <button
+                      key={side.name}
+                      onClick={() => handleSideDishClick(side)}
+                      disabled={!!generatingSide}
+                      className="flex-shrink-0 w-44 rounded-2xl p-3 text-left transition-all active:scale-95 disabled:opacity-60 flex flex-col justify-between"
+                      style={{
+                        background: 'var(--glass-bg)',
+                        border: '1px solid var(--border-color)',
+                        minHeight: '148px',
+                      }}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xl">{side.emoji}</span>
+                          <div className="flex items-center gap-1">
+                            {side.isStoreBought && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e' }}>
+                                store
+                              </span>
+                            )}
+                            <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>{side.estimatedMinutes}m</span>
+                          </div>
+                        </div>
+                        <p className="text-xs font-semibold leading-snug mb-1" style={{ color: 'var(--text-primary)' }}>{side.name}</p>
+                        <p className="text-[10px] leading-relaxed line-clamp-3" style={{ color: 'var(--text-muted)' }}>{side.description}</p>
+                      </div>
+                      <div
+                        className="mt-2 w-full py-1.5 rounded-lg text-[10px] font-semibold flex items-center justify-center gap-1"
+                        style={{ background: 'var(--gradient-brand)', color: 'white' }}
+                      >
+                        {isGenerating ? (
+                          <>
+                            <div className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />
+                            {t('rd_side_generating')}
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={10} />
+                            {t('rd_make_this')}
+                          </>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
