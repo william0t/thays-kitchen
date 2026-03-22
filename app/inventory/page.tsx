@@ -298,7 +298,7 @@ export default function InventoryPage() {
       {/* Add/Edit Modal */}
       {showModal && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center modal-overlay"
+          className="fixed inset-0 z-[60] flex items-end justify-center modal-overlay"
           onClick={(e) => { if (e.target === e.currentTarget) setShowModal(false); }}
         >
           <div
