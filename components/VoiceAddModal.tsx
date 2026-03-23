@@ -178,7 +178,7 @@ export default function VoiceAddModal({ onClose, onAdded, userId }: VoiceAddModa
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center modal-overlay"
+      className="fixed inset-0 z-[70] flex items-end justify-center modal-overlay pb-16"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
