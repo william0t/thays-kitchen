@@ -1142,7 +1142,7 @@ export default function RecipeDetailPage() {
               </>
             )}
           </button>
-          {completedMsg && (
+          {completedMsg ? (
             <p
               className="text-center text-sm mt-2 font-medium"
               style={{ color: completedMsg === t('rd_completed_success') ? '#22c55e' : 'var(--text-muted)' }}
@@ -1153,6 +1153,10 @@ export default function RecipeDetailPage() {
                   {t('rd_completed_body')}
                 </span>
               )}
+            </p>
+          ) : (
+            <p className="text-center text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+              {t('rd_mark_completed_hint')}
             </p>
           )}
         </div>

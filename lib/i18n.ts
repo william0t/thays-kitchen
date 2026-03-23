@@ -268,6 +268,7 @@ const en: Translations = {
 
   // Recipe completed
   rd_mark_completed: 'Mark as Completed',
+  rd_mark_completed_hint: 'Marks ingredients used as out of stock in your pantry',
   rd_completing: 'Updating pantry…',
   rd_completed_success: 'Pantry updated!',
   rd_completed_body: 'Ingredients have been deducted from your stock.',
@@ -529,6 +530,7 @@ const es: Translations = {
 
   // Recipe completed
   rd_mark_completed: 'Marcar como completada',
+  rd_mark_completed_hint: 'Marca los ingredientes usados como agotados en tu despensa',
   rd_completing: 'Actualizando despensa…',
   rd_completed_success: '¡Despensa actualizada!',
   rd_completed_body: 'Los ingredientes han sido descontados de tu stock.',
@@ -790,6 +792,7 @@ const pt: Translations = {
 
   // Recipe completed
   rd_mark_completed: 'Marcar como concluída',
+  rd_mark_completed_hint: 'Marca os ingredientes usados como esgotados na sua despensa',
   rd_completing: 'Atualizando despensa…',
   rd_completed_success: 'Despensa atualizada!',
   rd_completed_body: 'Os ingredientes foram deduzidos do seu estoque.',
