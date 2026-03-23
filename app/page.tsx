@@ -181,9 +181,9 @@ export default function HomePage() {
         <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
           {t('home_quick_actions')}
         </h3>
-        <div className="grid grid-cols-2 gap-3 [&>button]:col-auto">
-          <Link href="/inventory">
-            <div className="glass-card rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95">
+        <div className="grid grid-cols-2 gap-3" style={{ gridAutoRows: '1fr' }}>
+          <Link href="/inventory" className="h-full">
+            <div className="glass-card rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 h-full">
               <div className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0" style={{ background: 'rgba(236, 72, 153, 0.12)' }}>
                 <Refrigerator size={20} style={{ color: 'var(--accent-primary)' }} strokeWidth={1.8} />
               </div>
@@ -193,8 +193,8 @@ export default function HomePage() {
               </div>
             </div>
           </Link>
-          <Link href="/recipes">
-            <div className="glass-card rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95">
+          <Link href="/recipes" className="h-full">
+            <div className="glass-card rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 h-full">
               <div className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0" style={{ background: 'rgba(139, 92, 246, 0.12)' }}>
                 <BookOpen size={20} style={{ color: 'var(--accent-secondary)' }} strokeWidth={1.8} />
               </div>
