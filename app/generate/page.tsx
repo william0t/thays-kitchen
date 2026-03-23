@@ -4,12 +4,23 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Sparkles, ChefHat, Settings2, X, Check } from 'lucide-react';
+import { Sparkles, ChefHat, Settings2, X, Check, ArrowLeft, Clock } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
 import { supabase } from '@/lib/supabase';
-import { InventoryItem, Appliance, CATEGORY_EMOJIS, CATEGORY_LABELS, InventoryCategory } from '@/lib/types';
+import { InventoryItem, Appliance, CATEGORY_EMOJIS, InventoryCategory } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+
+interface RecipeIdea {
+  name: string;
+  description: string;
+  emoji: string;
+  estimatedMinutes: number;
+  keyIngredients: string[];
+  concept: string;
+}
+
+type Stage = 'criteria' | 'loading_ideas' | 'ideas' | 'generating';
 
 export default function GeneratePage() {
   const router = useRouter();
@@ -19,10 +30,14 @@ export default function GeneratePage() {
   const [ingredients, setIngredients] = useState<InventoryItem[]>([]);
   const [appliances, setAppliances] = useState<Appliance[]>([]);
   const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
 
-  // Selections
+  // UI stage
+  const [stage, setStage] = useState<Stage>('criteria');
+  const [ideas, setIdeas] = useState<RecipeIdea[]>([]);
+  const [selectedIdea, setSelectedIdea] = useState<RecipeIdea | null>(null);
+
+  // Criteria
   const [selectedIngredients, setSelectedIngredients] = useState<Set<string>>(new Set());
   const [selectedAppliances, setSelectedAppliances] = useState<Set<string>>(new Set());
   const [servings, setServings] = useState(4);
@@ -33,6 +48,8 @@ export default function GeneratePage() {
   const [skillLevel, setSkillLevel] = useState<'novice' | 'home_cook' | 'pro'>('home_cook');
   const [lazy, setLazy] = useState(false);
   const [adventurous, setAdventurous] = useState(false);
+  const [mealType, setMealType] = useState<'any' | 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'dessert'>('any');
+  const [healthy, setHealthy] = useState<boolean | null>(null);
 
   // Pre-fill from inspire mode
   useEffect(() => {
@@ -54,8 +71,6 @@ export default function GeneratePage() {
       const app = appRes.data || [];
       setIngredients(inv);
       setAppliances(app);
-
-      // Pre-select all in-stock items and all appliances
       setSelectedIngredients(new Set(inv.filter((i) => i.in_stock).map((i) => i.id)));
       setSelectedAppliances(new Set(app.map((a) => a.id)));
     } finally {
@@ -82,24 +97,26 @@ export default function GeneratePage() {
     });
   };
 
+  const inStockIds = ingredients.filter((i) => i.in_stock).map((i) => i.id);
   const selectAllAppliances = () => setSelectedAppliances(new Set(appliances.map((a) => a.id)));
   const deselectAllAppliances = () => setSelectedAppliances(new Set());
-
-  const inStockIds = ingredients.filter((i) => i.in_stock).map((i) => i.id);
   const selectAllIngredients = () => { setSelectedIngredients(new Set(inStockIds)); setUseAllInStock(false); };
   const deselectAllIngredients = () => { setSelectedIngredients(new Set()); setUseAllInStock(false); };
 
-  const handleGenerate = async () => {
-    setGenerating(true);
+  const getCriteriaPayload = () => {
+    const selectedIngs = useAllInStock
+      ? ingredients.filter((i) => i.in_stock)
+      : ingredients.filter((i) => selectedIngredients.has(i.id));
+    const selectedApps = appliances.filter((a) => selectedAppliances.has(a.id));
+    return { selectedIngs, selectedApps };
+  };
+
+  const handleGenerateIdeas = async () => {
     setError('');
+    setStage('loading_ideas');
+    const { selectedIngs, selectedApps } = getCriteriaPayload();
     try {
-      const selectedIngs = useAllInStock
-        ? ingredients.filter((i) => i.in_stock)
-        : ingredients.filter((i) => selectedIngredients.has(i.id));
-
-      const selectedApps = appliances.filter((a) => selectedAppliances.has(a.id));
-
-      const response = await fetch('/api/generate-recipe', {
+      const res = await fetch('/api/generate-ideas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,20 +125,50 @@ export default function GeneratePage() {
           preferences,
           servings,
           useAll: useAllInStock,
+          skillLevel,
+          lazy,
+          adventurous,
+          mealType,
+          healthy,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Failed to generate ideas');
+      setIdeas(data.ideas || []);
+      setStage('ideas');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setStage('criteria');
+    }
+  };
+
+  const handleSelectIdea = async (idea: RecipeIdea) => {
+    setSelectedIdea(idea);
+    setStage('generating');
+    setError('');
+    const { selectedIngs, selectedApps } = getCriteriaPayload();
+    try {
+      const combined = idea.concept + (preferences ? `\n\nAdditional notes: ${preferences}` : '');
+      const res = await fetch('/api/generate-recipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ingredients: selectedIngs,
+          appliances: selectedApps,
+          preferences: combined,
+          servings,
+          useAll: useAllInStock,
           strictStock,
           skillLevel,
           lazy,
           adventurous,
+          mealType,
+          healthy,
         }),
       });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Generation failed');
 
-      const data = await response.json();
-
-      if (!response.ok || data.error) {
-        throw new Error(data.error || 'Generation failed');
-      }
-
-      // Save recipe to Supabase
       const { data: saved, error: saveError } = await supabase
         .from('recipes')
         .insert({
@@ -142,24 +189,130 @@ export default function GeneratePage() {
         .single();
 
       if (saveError) throw saveError;
-
       router.push(`/recipes/${saved.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
-    } finally {
-      setGenerating(false);
+      setStage('ideas');
+      setSelectedIdea(null);
     }
   };
 
   const inStockCount = ingredients.filter((i) => i.in_stock).length;
-
-  // Group in-stock ingredients by category
   const grouped: Partial<Record<InventoryCategory, InventoryItem[]>> = {};
   ingredients.filter((i) => i.in_stock).forEach((item) => {
     if (!grouped[item.category]) grouped[item.category] = [];
     grouped[item.category]!.push(item);
   });
 
+  const MEAL_TYPES = [
+    { key: 'any', label: t('gen_meal_any'), emoji: '🍽️' },
+    { key: 'breakfast', label: t('gen_meal_breakfast'), emoji: '🌅' },
+    { key: 'lunch', label: t('gen_meal_lunch'), emoji: '🥗' },
+    { key: 'dinner', label: t('gen_meal_dinner'), emoji: '🌙' },
+    { key: 'snack', label: t('gen_meal_snack'), emoji: '🍿' },
+    { key: 'dessert', label: t('gen_meal_dessert'), emoji: '🍰' },
+  ] as const;
+
+  // ── Loading / generating states ──────────────────────────────────────────
+  if (stage === 'loading_ideas' || stage === 'generating') {
+    return (
+      <div className="page-content max-w-lg mx-auto px-4 flex flex-col items-center justify-center" style={{ minHeight: '70vh' }}>
+        <div className="flex flex-col items-center gap-6 animate-fade-in">
+          <div className="relative">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ background: 'var(--gradient-brand)', boxShadow: '0 8px 32px rgba(236,72,153,0.4)' }}>
+              {stage === 'generating' && selectedIdea
+                ? <span className="text-3xl">{selectedIdea.emoji}</span>
+                : <Sparkles size={36} color="white" strokeWidth={1.8} />}
+            </div>
+            <div className="absolute -inset-3 rounded-full border-2 border-pink-400/30 animate-ping" style={{ animationDuration: '1.5s' }} />
+          </div>
+          <div className="text-center">
+            <p className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+              {stage === 'generating' && selectedIdea
+                ? `${t('gen_ideas_generating')}`
+                : t('gen_loading_ideas')}
+            </p>
+            {stage === 'generating' && selectedIdea && (
+              <p className="text-sm font-semibold" style={{ color: 'var(--accent-primary)' }}>{selectedIdea.name}</p>
+            )}
+            <p className="text-xs mt-1 animate-pulse" style={{ color: 'var(--text-muted)' }}>
+              <ChefHat size={12} className="inline mr-1" />
+              {t('gen_crafting')}
+            </p>
+          </div>
+          {error && (
+            <div className="rounded-xl px-4 py-3 text-sm" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              {error}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Ideas grid ────────────────────────────────────────────────────────────
+  if (stage === 'ideas') {
+    return (
+      <div className="page-content max-w-lg mx-auto px-4 pt-6">
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => { setStage('criteria'); setIdeas([]); setError(''); }}
+            className="flex items-center gap-1.5 text-sm font-medium"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <ArrowLeft size={16} /> {t('gen_ideas_back')}
+          </button>
+        </div>
+        <h2 className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{t('gen_ideas_heading')}</h2>
+        <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>{t('gen_ideas_sub')}</p>
+
+        {error && (
+          <div className="rounded-xl px-4 py-3 text-sm mb-4 animate-fade-in" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-3 pb-8 animate-fade-in">
+          {ideas.map((idea, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleSelectIdea(idea)}
+              className="glass-card rounded-2xl p-4 text-left flex flex-col gap-2 transition-all active:scale-95 hover:scale-[1.02]"
+              style={{ border: '1px solid var(--border-color)' }}
+            >
+              <div className="flex items-start justify-between gap-1">
+                <span className="text-2xl">{idea.emoji}</span>
+                <span className="text-[10px] flex items-center gap-0.5 flex-shrink-0 mt-1" style={{ color: 'var(--text-muted)' }}>
+                  <Clock size={9} /> {idea.estimatedMinutes}m
+                </span>
+              </div>
+              <div>
+                <p className="text-xs font-bold leading-snug mb-1" style={{ color: 'var(--text-primary)' }}>{idea.name}</p>
+                <p className="text-[10px] leading-relaxed line-clamp-2" style={{ color: 'var(--text-muted)' }}>{idea.description}</p>
+              </div>
+              {idea.keyIngredients?.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-auto">
+                  {idea.keyIngredients.slice(0, 3).map((ing) => (
+                    <span key={ing} className="text-[9px] px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(236,72,153,0.1)', color: 'var(--accent-primary)' }}>
+                      {ing}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div
+                className="w-full py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 mt-1"
+                style={{ background: 'var(--gradient-brand)', color: 'white' }}
+              >
+                <Sparkles size={10} /> {t('gen_ideas_make')}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Criteria form ─────────────────────────────────────────────────────────
   return (
     <div className="page-content max-w-lg mx-auto px-4 pt-10">
       <PageHeader title={t('gen_title')} subtitle={t('gen_subtitle')} />
@@ -170,14 +323,63 @@ export default function GeneratePage() {
         </div>
       ) : (
         <div className="space-y-5 animate-fade-in">
+
+          {/* Meal Type */}
+          <div className="glass-card rounded-2xl p-4">
+            <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{t('gen_meal_type')}</div>
+            <div className="flex flex-wrap gap-2">
+              {MEAL_TYPES.map(({ key, label, emoji }) => (
+                <button
+                  key={key}
+                  onClick={() => setMealType(key)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                  style={
+                    mealType === key
+                      ? { background: 'var(--gradient-brand)', color: 'white', border: '1px solid transparent' }
+                      : { background: 'var(--glass-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }
+                  }
+                >
+                  <span>{emoji}</span> {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Health Vibe */}
+          <div className="glass-card rounded-2xl p-4">
+            <div className="text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{t('gen_health_vibe')}</div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setHealthy(healthy === true ? null : true)}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                style={
+                  healthy === true
+                    ? { background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.35)' }
+                    : { background: 'var(--glass-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }
+                }
+              >
+                🥗 {t('gen_health_healthy')}
+              </button>
+              <button
+                onClick={() => setHealthy(healthy === false ? null : false)}
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                style={
+                  healthy === false
+                    ? { background: 'rgba(249,115,22,0.15)', color: '#f97316', border: '1px solid rgba(249,115,22,0.35)' }
+                    : { background: 'var(--glass-bg)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }
+                }
+              >
+                🍕 {t('gen_health_treat')}
+              </button>
+            </div>
+          </div>
+
           {/* Ingredient selection mode */}
           <div className="glass-card rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
                 <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('gen_ingredients')}</div>
-                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {t('gen_items_in_stock', { count: inStockCount })}
-                </div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('gen_items_in_stock', { count: inStockCount })}</div>
               </div>
               <button
                 onClick={() => setUseAllInStock(!useAllInStock)}
@@ -192,8 +394,6 @@ export default function GeneratePage() {
                 {t('gen_use_all')}
               </button>
             </div>
-
-            {/* Strict stock toggle */}
             <button
               onClick={() => setStrictStock(!strictStock)}
               className="flex items-center gap-2 w-full mt-2 py-2 text-xs transition-all"
@@ -216,27 +416,14 @@ export default function GeneratePage() {
 
             {!useAllInStock && (
               <div className="space-y-3 mt-3">
-                {/* Select / Deselect all row */}
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={selectAllIngredients}
-                    className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
-                    style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
-                  >
-                    {t('gen_select_all')}
-                  </button>
-                  <button
-                    onClick={deselectAllIngredients}
-                    className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
-                    style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
-                  >
-                    {t('gen_deselect_all')}
-                  </button>
+                  <button onClick={selectAllIngredients} className="px-2.5 py-1 rounded-full text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>{t('gen_select_all')}</button>
+                  <button onClick={deselectAllIngredients} className="px-2.5 py-1 rounded-full text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>{t('gen_deselect_all')}</button>
                 </div>
                 {(Object.keys(grouped) as InventoryCategory[]).map((cat) => (
                   <div key={cat}>
                     <div className="text-xs font-medium mb-1.5 flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                      {CATEGORY_EMOJIS[cat]} {t(`cat_${cat}`)}
+                      {CATEGORY_EMOJIS[cat]} {cat}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {grouped[cat]!.map((item) => {
@@ -260,9 +447,7 @@ export default function GeneratePage() {
                   </div>
                 ))}
                 {inStockCount === 0 && (
-                  <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>
-                    {t('gen_no_items')}
-                  </p>
+                  <p className="text-xs text-center py-4" style={{ color: 'var(--text-muted)' }}>{t('gen_no_items')}</p>
                 )}
               </div>
             )}
@@ -274,20 +459,8 @@ export default function GeneratePage() {
               <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('gen_appliances')}</div>
               {appliances.length > 0 && (
                 <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={selectAllAppliances}
-                    className="px-2 py-1 rounded-full text-xs font-medium transition-all"
-                    style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
-                  >
-                    {t('gen_select_all')}
-                  </button>
-                  <button
-                    onClick={deselectAllAppliances}
-                    className="px-2 py-1 rounded-full text-xs font-medium transition-all"
-                    style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
-                  >
-                    {t('gen_deselect_all')}
-                  </button>
+                  <button onClick={selectAllAppliances} className="px-2 py-1 rounded-full text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>{t('gen_select_all')}</button>
+                  <button onClick={deselectAllAppliances} className="px-2 py-1 rounded-full text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>{t('gen_deselect_all')}</button>
                 </div>
               )}
             </div>
@@ -382,13 +555,7 @@ export default function GeneratePage() {
                   <div className="text-xs font-semibold" style={{ color: lazy ? 'rgb(99 102 241)' : 'var(--text-primary)' }}>{t('gen_mood_lazy')}</div>
                   <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('gen_mood_lazy_sub')}</div>
                 </div>
-                <div
-                  className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all"
-                  style={{
-                    background: lazy ? 'rgb(99 102 241)' : 'transparent',
-                    border: `1.5px solid ${lazy ? 'rgb(99 102 241)' : 'var(--border-color)'}`,
-                  }}
-                >
+                <div className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all" style={{ background: lazy ? 'rgb(99 102 241)' : 'transparent', border: `1.5px solid ${lazy ? 'rgb(99 102 241)' : 'var(--border-color)'}` }}>
                   {lazy && <Check size={10} strokeWidth={3} color="white" />}
                 </div>
               </button>
@@ -405,13 +572,7 @@ export default function GeneratePage() {
                   <div className="text-xs font-semibold" style={{ color: adventurous ? 'var(--accent-primary)' : 'var(--text-primary)' }}>{t('gen_mood_adventurous')}</div>
                   <div className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t('gen_mood_adventurous_sub')}</div>
                 </div>
-                <div
-                  className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all"
-                  style={{
-                    background: adventurous ? 'var(--accent-primary)' : 'transparent',
-                    border: `1.5px solid ${adventurous ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                  }}
-                >
+                <div className="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all" style={{ background: adventurous ? 'var(--accent-primary)' : 'transparent', border: `1.5px solid ${adventurous ? 'var(--accent-primary)' : 'var(--border-color)'}` }}>
                   {adventurous && <Check size={10} strokeWidth={3} color="white" />}
                 </div>
               </button>
@@ -453,39 +614,20 @@ export default function GeneratePage() {
 
           {/* Error */}
           {error && (
-            <div
-              className="rounded-xl px-4 py-3 text-sm animate-fade-in"
-              style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}
-            >
+            <div className="rounded-xl px-4 py-3 text-sm animate-fade-in" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
               {error}
             </div>
           )}
 
-          {/* Generate button */}
+          {/* Generate Ideas button */}
           <button
-            onClick={handleGenerate}
-            disabled={generating || (ingredients.filter((i) => i.in_stock).length === 0 && selectedIngredients.size === 0)}
+            onClick={handleGenerateIdeas}
+            disabled={ingredients.filter((i) => i.in_stock).length === 0 && selectedIngredients.size === 0}
             className="btn-gradient w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {generating ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                {t('gen_generating')}
-              </>
-            ) : (
-              <>
-                <Sparkles size={20} strokeWidth={2} />
-                {t('gen_generate_btn')}
-              </>
-            )}
+            <Sparkles size={20} strokeWidth={2} />
+            {t('gen_generate_ideas_btn')}
           </button>
-
-          {generating && (
-            <p className="text-center text-sm animate-pulse" style={{ color: 'var(--text-muted)' }}>
-              <ChefHat size={14} className="inline mr-1" />
-              {t('gen_crafting')}
-            </p>
-          )}
         </div>
       )}
     </div>

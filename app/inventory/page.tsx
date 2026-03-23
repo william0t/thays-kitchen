@@ -3,8 +3,9 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Search, Check, X, Edit2, Trash2, Package, Filter } from 'lucide-react';
+import { Plus, Search, Check, X, Edit2, Trash2, Package, Filter, Mic } from 'lucide-react';
 import PageHeader from '@/components/PageHeader';
+import VoiceAddModal from '@/components/VoiceAddModal';
 import { supabase } from '@/lib/supabase';
 import {
   InventoryItem,
@@ -49,6 +50,7 @@ export default function InventoryPage() {
   const [form, setForm] = useState<FormData>(defaultForm);
   const [saving, setSaving] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -142,9 +144,19 @@ export default function InventoryPage() {
         title={t('inv_title')}
         subtitle={t('inv_subtitle', { inStock: inStockCount, total: items.length })}
         action={
-          <button onClick={openAdd} className="btn-gradient flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold">
-            <Plus size={16} /> {t('inv_add')}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setVoiceOpen(true)}
+              className="flex items-center justify-center w-9 h-9 rounded-xl transition-all"
+              style={{ background: 'rgba(236,72,153,0.12)', border: '1px solid rgba(236,72,153,0.25)', color: 'var(--accent-primary)' }}
+              title={t('voice_add_title')}
+            >
+              <Mic size={16} />
+            </button>
+            <button onClick={openAdd} className="btn-gradient flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold">
+              <Plus size={16} /> {t('inv_add')}
+            </button>
+          </div>
         }
       />
 
@@ -299,6 +311,15 @@ export default function InventoryPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Voice Add Modal */}
+      {voiceOpen && (
+        <VoiceAddModal
+          userId={user?.id}
+          onClose={() => setVoiceOpen(false)}
+          onAdded={fetchItems}
+        />
       )}
 
       {/* Add/Edit Modal */}

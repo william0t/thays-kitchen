@@ -4,11 +4,12 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Refrigerator, Utensils, BookOpen, Sparkles, TrendingUp, ChevronRight, LogOut, Wand2, LayoutList } from 'lucide-react';
+import { Refrigerator, Utensils, BookOpen, Sparkles, TrendingUp, ChevronRight, LogOut, Wand2, LayoutList, Mic } from 'lucide-react';
 import Logo from '@/components/Logo';
 import ThemeToggle from '@/components/ThemeToggle';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import OnboardingWizard from '@/components/OnboardingWizard';
+import VoiceAddModal from '@/components/VoiceAddModal';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -21,7 +22,7 @@ interface Stats {
 }
 
 export default function HomePage() {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { t } = useLanguage();
   const [stats, setStats] = useState<Stats>({
     inventoryCount: 0,
@@ -33,6 +34,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardIsFirstTime, setWizardIsFirstTime] = useState(false);
+  const [voiceOpen, setVoiceOpen] = useState(false);
 
   async function fetchStats() {
     try {
@@ -179,7 +181,7 @@ export default function HomePage() {
         <h3 className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: 'var(--text-muted)' }}>
           {t('home_quick_actions')}
         </h3>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 [&>button]:col-auto">
           <Link href="/inventory">
             <div className="glass-card rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95">
               <div className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0" style={{ background: 'rgba(236, 72, 153, 0.12)' }}>
@@ -204,7 +206,7 @@ export default function HomePage() {
           </Link>
           <button
             onClick={() => { setWizardIsFirstTime(false); setWizardOpen(true); }}
-            className="glass-card rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 col-span-2 text-left w-full"
+            className="glass-card rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 text-left w-full"
           >
             <div className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0" style={{ background: 'rgba(251, 146, 60, 0.12)' }}>
               <LayoutList size={20} style={{ color: 'var(--accent-tertiary)' }} strokeWidth={1.8} />
@@ -212,6 +214,18 @@ export default function HomePage() {
             <div>
               <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('home_quick_setup')}</div>
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('home_quick_setup_sub')}</div>
+            </div>
+          </button>
+          <button
+            onClick={() => setVoiceOpen(true)}
+            className="glass-card rounded-2xl p-4 flex items-center gap-3 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 text-left w-full"
+          >
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl flex-shrink-0" style={{ background: 'rgba(236, 72, 153, 0.12)' }}>
+              <Mic size={20} style={{ color: 'var(--accent-primary)' }} strokeWidth={1.8} />
+            </div>
+            <div>
+              <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('voice_add_title')}</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('voice_add_sub')}</div>
             </div>
           </button>
         </div>
@@ -242,6 +256,15 @@ export default function HomePage() {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Voice Modal */}
+      {voiceOpen && (
+        <VoiceAddModal
+          userId={user?.id}
+          onClose={() => setVoiceOpen(false)}
+          onAdded={fetchStats}
+        />
       )}
 
       {/* Wizard */}

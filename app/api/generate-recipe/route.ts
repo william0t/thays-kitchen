@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export async function POST(request: NextRequest) {
   try {
-    const { ingredients, appliances, preferences, servings, useAll, strictStock, skillLevel, lazy, adventurous } = await request.json();
+    const { ingredients, appliances, preferences, servings, useAll, strictStock, skillLevel, lazy, adventurous, mealType, healthy } = await request.json();
 
     const ingredientList = ingredients
       .filter((i: { in_stock: boolean }) => i.in_stock)
@@ -96,6 +96,16 @@ These should feel like guidance from an experienced friend standing next to the 
     const activeSkillLevel = skillLevel || 'home_cook';
     const skillInstruction = skillLevelInstructions[activeSkillLevel] ?? skillLevelInstructions.home_cook;
 
+    const mealTypeInstruction = mealType && mealType !== 'any'
+      ? `MEAL TYPE — ${mealType.toUpperCase()}: This recipe MUST be a ${mealType} dish. Design it specifically for that meal occasion — appropriate portion size, ingredients, timing, and format for ${mealType}.`
+      : '';
+
+    const healthInstruction = healthy === true
+      ? `HEALTH FOCUS — HEALTHY: Prioritise nutritious, balanced, whole-food cooking. Use lean proteins, plenty of vegetables, whole grains, healthy fats (olive oil, avocado, nuts). Minimise added sugar, heavy cream, and deep frying. The dish should be satisfying AND good for you.`
+      : healthy === false
+      ? `HEALTH FOCUS — TREAT YOURSELF: This is comfort food night. Go rich, indulgent, and satisfying. Butter, cream, cheese, crispy things — lean into it. This is not the night for calorie counting.`
+      : '';
+
     const prompt = `You are a professional chef and recipe creator. Create a delicious, detailed recipe.
 
 ${ingredientInstruction}
@@ -109,6 +119,10 @@ ${strictStockInstruction}
 ${skillInstruction}
 
 ${moodInstruction}
+
+${mealTypeInstruction}
+
+${healthInstruction}
 
 ${beginnerCoachingInstruction}
 
