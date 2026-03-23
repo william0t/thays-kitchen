@@ -582,20 +582,18 @@ export default function RecipeDetailPage() {
         >
           <ArrowLeft size={18} /> {t('rd_back')}
         </button>
-        <div className="flex items-center gap-2">
-          <button onClick={handleCopy} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: copied ? 'var(--success)' : 'var(--text-muted)' }}>
-            {copied ? <Check size={13} /> : <Copy size={13} />}
-            {copied ? t('rd_copied') : t('rd_copy')}
+        <div className="flex items-center gap-1.5">
+          <button onClick={handleCopy} className="flex items-center justify-center w-8 h-8 rounded-xl transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: copied ? 'var(--success)' : 'var(--text-muted)' }} title={t('rd_copy')}>
+            {copied ? <Check size={15} /> : <Copy size={15} />}
           </button>
-          <button onClick={handleShare} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: shared ? 'var(--success)' : 'var(--text-muted)' }}>
-            {shared ? <Check size={13} /> : <Share2 size={13} />}
-            {shared ? t('rd_copied') : t('rd_share')}
+          <button onClick={handleShare} className="flex items-center justify-center w-8 h-8 rounded-xl transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: shared ? 'var(--success)' : 'var(--text-muted)' }} title={t('rd_share')}>
+            {shared ? <Check size={15} /> : <Share2 size={15} />}
           </button>
-          <button onClick={handlePrint} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-            <Printer size={13} /> {t('rd_print')}
+          <button onClick={handlePrint} className="flex items-center justify-center w-8 h-8 rounded-xl transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }} title={t('rd_print')}>
+            <Printer size={15} />
           </button>
-          <button onClick={handleDownloadPdf} className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all btn-gradient">
-            <Download size={13} /> {t('rd_pdf')}
+          <button onClick={handleDownloadPdf} className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all btn-gradient" title={t('rd_pdf')}>
+            <Download size={14} /> {t('rd_pdf')}
           </button>
           <ThemeToggle />
         </div>
