@@ -188,10 +188,10 @@ export default function GeneratePage() {
         .select()
         .single();
 
-      if (saveError) throw saveError;
+      if (saveError) throw new Error(saveError.message || 'Failed to save recipe');
       router.push(`/recipes/${saved.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      setError(err instanceof Error ? err.message : String(err));
       setStage('ideas');
       setSelectedIdea(null);
     }
@@ -456,7 +456,10 @@ export default function GeneratePage() {
           {/* Appliances */}
           <div className="glass-card rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('gen_appliances')}</div>
+              <div>
+                <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('gen_appliances')}</div>
+                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>{t('gen_appliances_sub')}</div>
+              </div>
               {appliances.length > 0 && (
                 <div className="flex items-center gap-1.5">
                   <button onClick={selectAllAppliances} className="px-2 py-1 rounded-full text-xs font-medium transition-all" style={{ background: 'var(--glass-bg)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>{t('gen_select_all')}</button>
