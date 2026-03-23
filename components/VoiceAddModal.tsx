@@ -190,7 +190,7 @@ export default function VoiceAddModal({ onClose, onAdded, userId }: VoiceAddModa
           <div className="w-10 h-1 rounded-full" style={{ background: 'var(--border-strong)' }} />
         </div>
 
-        <div className="px-5 pb-10 pt-2">
+        <div className="px-5 pt-2" style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom))' }}>
           {/* Header */}
           <div className="flex items-center justify-between mb-5">
             <div>
